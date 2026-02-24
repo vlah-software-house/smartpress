@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"smartpress/internal/ai"
 	"smartpress/internal/cache"
 	"smartpress/internal/config"
 	"smartpress/internal/database"
@@ -94,6 +95,19 @@ func main() {
 	// Initialize the L2 page cache (full-page HTML in Valkey).
 	pageCache := cache.NewPageCache(valkeyClient, cache.DefaultPageTTL)
 
+	// Initialize the AI provider registry with all configured providers.
+	aiRegistry := ai.NewRegistry(cfg.AIProvider, map[string]ai.ProviderConfig{
+		"openai":  {APIKey: cfg.OpenAIKey, Model: cfg.OpenAIModel, BaseURL: cfg.OpenAIBaseURL},
+		"gemini":  {APIKey: cfg.GeminiKey, Model: cfg.GeminiModel, BaseURL: cfg.GeminiBaseURL},
+		"claude":  {APIKey: cfg.ClaudeKey, Model: cfg.ClaudeModel, BaseURL: cfg.ClaudeBaseURL},
+		"mistral": {APIKey: cfg.MistralKey, Model: cfg.MistralModel, BaseURL: cfg.MistralBaseURL},
+	})
+
+	slog.Info("ai providers initialized",
+		"active", aiRegistry.ActiveName(),
+		"available", aiRegistry.Available(),
+	)
+
 	// Build AI provider config for the admin settings page.
 	aiCfg := &handlers.AIConfig{
 		ActiveProvider: cfg.AIProvider,
@@ -106,7 +120,7 @@ func main() {
 	}
 
 	// Create handler groups with their dependencies.
-	adminHandlers := handlers.NewAdmin(renderer, sessionStore, contentStore, userStore, templateStore, eng, pageCache, cacheLogStore, aiCfg)
+	adminHandlers := handlers.NewAdmin(renderer, sessionStore, contentStore, userStore, templateStore, eng, pageCache, cacheLogStore, aiRegistry, aiCfg)
 	authHandlers := handlers.NewAuth(renderer, sessionStore, userStore)
 	publicHandlers := handlers.NewPublic(eng, contentStore, pageCache)
 

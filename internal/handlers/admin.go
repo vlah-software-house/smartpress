@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"smartpress/internal/ai"
 	"smartpress/internal/cache"
 	"smartpress/internal/engine"
 	"smartpress/internal/middleware"
@@ -50,11 +51,12 @@ type Admin struct {
 	engine        *engine.Engine
 	pageCache     *cache.PageCache
 	cacheLog      *store.CacheLogStore
+	aiRegistry    *ai.Registry
 	aiConfig      *AIConfig
 }
 
 // NewAdmin creates a new Admin handler group with the given dependencies.
-func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, eng *engine.Engine, pageCache *cache.PageCache, cacheLog *store.CacheLogStore, aiCfg *AIConfig) *Admin {
+func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, eng *engine.Engine, pageCache *cache.PageCache, cacheLog *store.CacheLogStore, aiRegistry *ai.Registry, aiCfg *AIConfig) *Admin {
 	return &Admin{
 		renderer:      renderer,
 		sessions:      sessions,
@@ -64,6 +66,7 @@ func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *
 		engine:        eng,
 		pageCache:     pageCache,
 		cacheLog:      cacheLog,
+		aiRegistry:    aiRegistry,
 		aiConfig:      aiCfg,
 	}
 }

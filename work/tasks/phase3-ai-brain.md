@@ -1,8 +1,10 @@
 # Phase 3: The AI "Brain" (MVP 2)
 
 ## Step 8: LLM API Integration
-- [ ] Abstraction layer supporting multiple AI providers
-- [ ] Configuration via .secrets (provider, key, model)
+- [x] Abstraction layer supporting multiple AI providers (OpenAI, Gemini, Claude, Mistral)
+- [x] Configuration via .secrets (per-provider keys, models, optional base URLs)
+- [x] Registry with runtime switching
+- [x] Live API tests for all 4 providers
 
 ## Step 9: Content AI Assistant
 - [ ] AI Assistant sidebar/modal in editor
