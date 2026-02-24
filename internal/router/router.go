@@ -15,7 +15,7 @@ import (
 
 // New creates and returns the configured Chi router with all middleware
 // and route groups wired up.
-func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth) chi.Router {
+func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth, public *handlers.Public) chi.Router {
 	r := chi.NewRouter()
 
 	// Global middleware — applied to every request.
@@ -75,6 +75,13 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 			// Templates (AI Design)
 			r.Route("/templates", func(r chi.Router) {
 				r.Get("/", admin.TemplatesList)
+				r.Get("/new", admin.TemplateNew)
+				r.Post("/", admin.TemplateCreate)
+				r.Post("/preview", admin.TemplatePreview)
+				r.Get("/{id}", admin.TemplateEdit)
+				r.Put("/{id}", admin.TemplateUpdate)
+				r.Delete("/{id}", admin.TemplateDelete)
+				r.Post("/{id}/activate", admin.TemplateActivate)
 			})
 
 			// User management — admin only
@@ -90,10 +97,8 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 	})
 
 	// Public routes — served by the dynamic template engine.
-	r.Group(func(r chi.Router) {
-		r.Get("/", placeholderHandler("Homepage"))
-		r.Get("/{slug}", placeholderHandler("Public Page"))
-	})
+	r.Get("/", public.Homepage)
+	r.Get("/{slug}", public.Page)
 
 	return r
 }
@@ -103,13 +108,4 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"status":"ok"}`))
-}
-
-// placeholderHandler returns a handler that displays a placeholder page name.
-func placeholderHandler(name string) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("<h1>SmartPress — " + name + "</h1><p>Coming soon.</p>"))
-	}
 }

@@ -1,0 +1,123 @@
+{{define "title"}}{{if .Data.IsNew}}New{{else}}Edit{{end}} Template{{end}}
+
+{{define "content"}}
+<div class="max-w-4xl space-y-6">
+    {{if .Data.Error}}
+    <div class="rounded-md bg-red-50 border border-red-200 p-4">
+        <p class="text-sm text-red-800">{{.Data.Error}}</p>
+    </div>
+    {{end}}
+
+    <form method="POST"
+          {{if .Data.IsNew}}
+          action="/admin/templates"
+          {{else}}
+          action="/admin/templates/{{.Data.Item.ID}}"
+          hx-put="/admin/templates/{{.Data.Item.ID}}"
+          {{end}}
+          hx-target="#main-content"
+          class="space-y-6">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+
+        <!-- Name and Type -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700">Template Name</label>
+                    <input type="text" id="name" name="name" required
+                           value="{{if .Data.Item}}{{.Data.Item.Name}}{{end}}"
+                           class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                                  placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                           placeholder="e.g., Default Page Layout">
+                </div>
+
+                <div>
+                    <label for="type" class="block text-sm font-medium text-gray-700">Type</label>
+                    {{if .Data.IsNew}}
+                    <select id="type" name="type" required
+                            class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                                   focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+                        <option value="header" {{if and .Data.Item (eq (printf "%s" .Data.Item.Type) "header")}}selected{{end}}>Header</option>
+                        <option value="footer" {{if and .Data.Item (eq (printf "%s" .Data.Item.Type) "footer")}}selected{{end}}>Footer</option>
+                        <option value="page" {{if and .Data.Item (eq (printf "%s" .Data.Item.Type) "page")}}selected{{end}}>Page</option>
+                        <option value="article_loop" {{if and .Data.Item (eq (printf "%s" .Data.Item.Type) "article_loop")}}selected{{end}}>Article Loop</option>
+                    </select>
+                    {{else}}
+                    <input type="text" disabled
+                           value="{{.Data.Item.Type}}"
+                           class="mt-1 block w-full rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                    {{end}}
+                </div>
+            </div>
+
+            <!-- Help text -->
+            <div class="p-3 bg-blue-50 border border-blue-200 rounded-md text-xs text-blue-800">
+                <p class="font-medium mb-1">Available template variables:</p>
+                <p><strong>Page templates:</strong>
+                    <code>{{"{{"}} .Title {{"}}"}}</code>,
+                    <code>{{"{{"}} .Body {{"}}"}}</code>,
+                    <code>{{"{{"}} .Header {{"}}"}}</code>,
+                    <code>{{"{{"}} .Footer {{"}}"}}</code>,
+                    <code>{{"{{"}} .MetaDescription {{"}}"}}</code>,
+                    <code>{{"{{"}} .MetaKeywords {{"}}"}}</code>,
+                    <code>{{"{{"}} .SiteName {{"}}"}}</code>,
+                    <code>{{"{{"}} .Year {{"}}"}}</code>
+                </p>
+                <p class="mt-1"><strong>Article loop:</strong>
+                    <code>{{"{{"}} range .Posts {{"}}"}}</code> with
+                    <code>{{"{{"}} .Title {{"}}"}}</code>,
+                    <code>{{"{{"}} .Slug {{"}}"}}</code>,
+                    <code>{{"{{"}} .Excerpt {{"}}"}}</code>,
+                    <code>{{"{{"}} .PublishedAt {{"}}"}}</code>
+                </p>
+            </div>
+        </div>
+
+        <!-- HTML Content Editor -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <label for="html_content" class="block text-sm font-medium text-gray-700 mb-2">
+                HTML + TailwindCSS Template
+            </label>
+            <textarea id="html_content" name="html_content" rows="20" required
+                      class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono shadow-sm
+                             placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                      placeholder="Paste your HTML + TailwindCSS template here...">{{if .Data.Item}}{{.Data.Item.HTMLContent}}{{end}}</textarea>
+        </div>
+
+        <!-- Preview -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6" x-data="{ showPreview: false }">
+            <div class="flex items-center justify-between mb-2">
+                <label class="block text-sm font-medium text-gray-700">Live Preview</label>
+                <button type="button"
+                        @click="showPreview = true"
+                        hx-post="/admin/templates/preview"
+                        hx-target="#preview-frame"
+                        hx-include="[name='html_content']"
+                        class="text-sm text-indigo-600 hover:text-indigo-800">
+                    Refresh Preview
+                </button>
+            </div>
+            <div id="preview-frame" class="border border-gray-200 rounded-md bg-white min-h-[200px] p-4">
+                <p class="text-sm text-gray-400 text-center">Click "Refresh Preview" to see your template rendered with sample data.</p>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-end gap-3">
+                <a href="/admin/templates"
+                   hx-get="/admin/templates"
+                   hx-target="#main-content"
+                   hx-push-url="true"
+                   class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 border border-gray-300 shadow-sm transition-colors">
+                    Cancel
+                </a>
+                <button type="submit"
+                        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 transition-colors">
+                    {{if .Data.IsNew}}Create Template{{else}}Update Template{{end}}
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{{end}}

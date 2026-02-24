@@ -4,12 +4,14 @@
 package handlers
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"smartpress/internal/engine"
 	"smartpress/internal/middleware"
 	"smartpress/internal/models"
 	"smartpress/internal/render"
@@ -20,19 +22,23 @@ import (
 
 // Admin groups all admin panel HTTP handlers and their dependencies.
 type Admin struct {
-	renderer     *render.Renderer
-	sessions     *session.Store
-	contentStore *store.ContentStore
-	userStore    *store.UserStore
+	renderer      *render.Renderer
+	sessions      *session.Store
+	contentStore  *store.ContentStore
+	userStore     *store.UserStore
+	templateStore *store.TemplateStore
+	engine        *engine.Engine
 }
 
 // NewAdmin creates a new Admin handler group with the given dependencies.
-func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore) *Admin {
+func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, eng *engine.Engine) *Admin {
 	return &Admin{
-		renderer:     renderer,
-		sessions:     sessions,
-		contentStore: contentStore,
-		userStore:    userStore,
+		renderer:      renderer,
+		sessions:      sessions,
+		contentStore:  contentStore,
+		userStore:     userStore,
+		templateStore: templateStore,
+		engine:        eng,
 	}
 }
 
@@ -327,14 +333,203 @@ func (a *Admin) deleteContent(w http.ResponseWriter, r *http.Request, section st
 	http.Redirect(w, r, "/admin/"+section, http.StatusSeeOther)
 }
 
-// --- Templates & Users list pages ---
+// --- Template management ---
 
-// TemplatesList renders the templates/AI design page.
+// TemplatesList renders the templates management page with real data.
 func (a *Admin) TemplatesList(w http.ResponseWriter, r *http.Request) {
+	templates, err := a.templateStore.List()
+	if err != nil {
+		slog.Error("list templates failed", "error", err)
+	}
+
 	a.renderer.Page(w, r, "templates_list", &render.PageData{
 		Title:   "AI Design",
 		Section: "templates",
+		Data:    map[string]any{"Templates": templates},
 	})
+}
+
+// TemplateNew renders the new template form.
+func (a *Admin) TemplateNew(w http.ResponseWriter, r *http.Request) {
+	a.renderer.Page(w, r, "template_form", &render.PageData{
+		Title:   "New Template",
+		Section: "templates",
+		Data:    map[string]any{"IsNew": true},
+	})
+}
+
+// TemplateCreate handles the new template form submission.
+func (a *Admin) TemplateCreate(w http.ResponseWriter, r *http.Request) {
+	name := r.FormValue("name")
+	tmplType := models.TemplateType(r.FormValue("type"))
+	htmlContent := r.FormValue("html_content")
+
+	// Validate the template syntax before saving.
+	if err := a.engine.ValidateTemplate(htmlContent); err != nil {
+		a.renderer.Page(w, r, "template_form", &render.PageData{
+			Title:   "New Template",
+			Section: "templates",
+			Data: map[string]any{
+				"IsNew": true,
+				"Error": "Template syntax error: " + err.Error(),
+				"Item":  &models.Template{Name: name, Type: tmplType, HTMLContent: htmlContent},
+			},
+		})
+		return
+	}
+
+	t := &models.Template{
+		Name:        name,
+		Type:        tmplType,
+		HTMLContent: htmlContent,
+	}
+
+	_, err := a.templateStore.Create(t)
+	if err != nil {
+		slog.Error("create template failed", "error", err)
+		a.renderer.Page(w, r, "template_form", &render.PageData{
+			Title:   "New Template",
+			Section: "templates",
+			Data: map[string]any{
+				"IsNew": true,
+				"Error": "Failed to create template.",
+				"Item":  t,
+			},
+		})
+		return
+	}
+
+	http.Redirect(w, r, "/admin/templates", http.StatusSeeOther)
+}
+
+// TemplateEdit renders the edit template form.
+func (a *Admin) TemplateEdit(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	item, err := a.templateStore.FindByID(id)
+	if err != nil || item == nil {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
+	a.renderer.Page(w, r, "template_form", &render.PageData{
+		Title:   "Edit Template",
+		Section: "templates",
+		Data: map[string]any{
+			"IsNew": false,
+			"Item":  item,
+		},
+	})
+}
+
+// TemplateUpdate handles the edit template form submission.
+func (a *Admin) TemplateUpdate(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	item, err := a.templateStore.FindByID(id)
+	if err != nil || item == nil {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
+	item.Name = r.FormValue("name")
+	htmlContent := r.FormValue("html_content")
+
+	// Validate syntax.
+	if err := a.engine.ValidateTemplate(htmlContent); err != nil {
+		a.renderer.Page(w, r, "template_form", &render.PageData{
+			Title:   "Edit Template",
+			Section: "templates",
+			Data: map[string]any{
+				"IsNew": false,
+				"Error": "Template syntax error: " + err.Error(),
+				"Item":  item,
+			},
+		})
+		return
+	}
+
+	item.HTMLContent = htmlContent
+	if err := a.templateStore.Update(item); err != nil {
+		slog.Error("update template failed", "error", err)
+	}
+
+	http.Redirect(w, r, "/admin/templates", http.StatusSeeOther)
+}
+
+// TemplateActivate sets a template as active for its type.
+func (a *Admin) TemplateActivate(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := a.templateStore.Activate(id); err != nil {
+		slog.Error("activate template failed", "error", err)
+	}
+
+	http.Redirect(w, r, "/admin/templates", http.StatusSeeOther)
+}
+
+// TemplateDelete handles template deletion.
+func (a *Admin) TemplateDelete(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := a.templateStore.Delete(id); err != nil {
+		slog.Error("delete template failed", "error", err)
+	}
+
+	http.Redirect(w, r, "/admin/templates", http.StatusSeeOther)
+}
+
+// TemplatePreview renders a preview of a template with dummy data.
+func (a *Admin) TemplatePreview(w http.ResponseWriter, r *http.Request) {
+	htmlContent := r.FormValue("html_content")
+	if htmlContent == "" {
+		http.Error(w, "No template content", http.StatusBadRequest)
+		return
+	}
+
+	data := engine.PageData{
+		SiteName:        "SmartPress",
+		Title:           "Preview Page Title",
+		Body:            "<p>This is preview content. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>",
+		Excerpt:         "A brief preview excerpt.",
+		MetaDescription: "Preview meta description",
+		Slug:            "preview-page",
+		PublishedAt:     "February 24, 2026",
+		Header:          "<header><nav>Header Preview</nav></header>",
+		Footer:          "<footer><p>Footer Preview</p></footer>",
+		Year:            2026,
+	}
+
+	result, err := a.engine.ValidateAndRender(htmlContent, data)
+	if err != nil {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `<div class="p-4 bg-red-50 border border-red-200 rounded text-red-800 text-sm">Template error: %s</div>`, err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(result)
 }
 
 // UsersList renders the user management page with real data.

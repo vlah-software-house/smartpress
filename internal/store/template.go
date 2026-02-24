@@ -1,0 +1,170 @@
+package store
+
+import (
+	"database/sql"
+	"fmt"
+
+	"github.com/google/uuid"
+
+	"smartpress/internal/models"
+)
+
+// TemplateStore handles all template-related database operations.
+type TemplateStore struct {
+	db *sql.DB
+}
+
+// NewTemplateStore creates a new TemplateStore with the given database connection.
+func NewTemplateStore(db *sql.DB) *TemplateStore {
+	return &TemplateStore{db: db}
+}
+
+// List returns all templates ordered by type and name.
+func (s *TemplateStore) List() ([]models.Template, error) {
+	rows, err := s.db.Query(`
+		SELECT id, name, type, html_content, version, is_active, created_at, updated_at
+		FROM templates
+		ORDER BY type, name
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list templates: %w", err)
+	}
+	defer rows.Close()
+
+	var templates []models.Template
+	for rows.Next() {
+		var t models.Template
+		if err := rows.Scan(
+			&t.ID, &t.Name, &t.Type, &t.HTMLContent, &t.Version,
+			&t.IsActive, &t.CreatedAt, &t.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan template: %w", err)
+		}
+		templates = append(templates, t)
+	}
+	return templates, rows.Err()
+}
+
+// FindByID retrieves a template by its UUID. Returns nil if not found.
+func (s *TemplateStore) FindByID(id uuid.UUID) (*models.Template, error) {
+	t := &models.Template{}
+	err := s.db.QueryRow(`
+		SELECT id, name, type, html_content, version, is_active, created_at, updated_at
+		FROM templates WHERE id = $1
+	`, id).Scan(
+		&t.ID, &t.Name, &t.Type, &t.HTMLContent, &t.Version,
+		&t.IsActive, &t.CreatedAt, &t.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("find template by id: %w", err)
+	}
+	return t, nil
+}
+
+// FindActiveByType returns the active template for the given type.
+// Only one template per type should be active at a time.
+func (s *TemplateStore) FindActiveByType(tmplType models.TemplateType) (*models.Template, error) {
+	t := &models.Template{}
+	err := s.db.QueryRow(`
+		SELECT id, name, type, html_content, version, is_active, created_at, updated_at
+		FROM templates WHERE type = $1 AND is_active = TRUE
+		LIMIT 1
+	`, tmplType).Scan(
+		&t.ID, &t.Name, &t.Type, &t.HTMLContent, &t.Version,
+		&t.IsActive, &t.CreatedAt, &t.UpdatedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("find active template: %w", err)
+	}
+	return t, nil
+}
+
+// Create inserts a new template. Does NOT activate it automatically.
+func (s *TemplateStore) Create(t *models.Template) (*models.Template, error) {
+	result := &models.Template{}
+	err := s.db.QueryRow(`
+		INSERT INTO templates (name, type, html_content, version, is_active)
+		VALUES ($1, $2, $3, 1, FALSE)
+		RETURNING id, name, type, html_content, version, is_active, created_at, updated_at
+	`, t.Name, t.Type, t.HTMLContent).Scan(
+		&result.ID, &result.Name, &result.Type, &result.HTMLContent,
+		&result.Version, &result.IsActive, &result.CreatedAt, &result.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create template: %w", err)
+	}
+	return result, nil
+}
+
+// Update modifies a template and increments its version.
+func (s *TemplateStore) Update(t *models.Template) error {
+	_, err := s.db.Exec(`
+		UPDATE templates SET
+			name = $1, html_content = $2, version = version + 1, updated_at = NOW()
+		WHERE id = $3
+	`, t.Name, t.HTMLContent, t.ID)
+	if err != nil {
+		return fmt.Errorf("update template: %w", err)
+	}
+	return nil
+}
+
+// Activate sets a template as the active one for its type, deactivating
+// any other template of the same type. Uses a transaction for atomicity.
+func (s *TemplateStore) Activate(id uuid.UUID) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Get the template's type.
+	var tmplType string
+	err = tx.QueryRow(`SELECT type FROM templates WHERE id = $1`, id).Scan(&tmplType)
+	if err != nil {
+		return fmt.Errorf("get template type: %w", err)
+	}
+
+	// Deactivate all templates of this type.
+	_, err = tx.Exec(`UPDATE templates SET is_active = FALSE WHERE type = $1`, tmplType)
+	if err != nil {
+		return fmt.Errorf("deactivate templates: %w", err)
+	}
+
+	// Activate the target template.
+	_, err = tx.Exec(`UPDATE templates SET is_active = TRUE, updated_at = NOW() WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("activate template: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// Delete removes a template by ID. Cannot delete an active template.
+func (s *TemplateStore) Delete(id uuid.UUID) error {
+	result, err := s.db.Exec(`DELETE FROM templates WHERE id = $1 AND is_active = FALSE`, id)
+	if err != nil {
+		return fmt.Errorf("delete template: %w", err)
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("cannot delete: template is active or not found")
+	}
+	return nil
+}
+
+// Count returns the total number of templates.
+func (s *TemplateStore) Count() (int, error) {
+	var count int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM templates`).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count templates: %w", err)
+	}
+	return count, nil
+}

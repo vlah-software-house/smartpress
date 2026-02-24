@@ -4,8 +4,8 @@
 <div class="space-y-6">
     <div class="flex items-center justify-between">
         <div>
-            <h2 class="text-xl font-semibold text-gray-900">AI Design</h2>
-            <p class="mt-1 text-sm text-gray-500">Generate and manage templates with AI.</p>
+            <h2 class="text-xl font-semibold text-gray-900">Templates</h2>
+            <p class="mt-1 text-sm text-gray-500">Manage your site templates. Activate one per type to use it on the public site.</p>
         </div>
         <a href="/admin/templates/new"
            hx-get="/admin/templates/new"
@@ -13,19 +13,89 @@
            hx-push-url="true"
            class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 transition-colors">
             <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            Generate Template
+            New Template
         </a>
     </div>
 
-    <!-- Template cards -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
-        </svg>
-        <p class="mt-4 text-sm text-gray-500">No templates yet. Use AI to generate your first template.</p>
-        <p class="mt-1 text-xs text-gray-400">Describe your desired layout and the AI will generate HTML + TailwindCSS code.</p>
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Version</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {{if and .Data .Data.Templates}}
+                {{range .Data.Templates}}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4">
+                        <a href="/admin/templates/{{.ID}}"
+                           hx-get="/admin/templates/{{.ID}}"
+                           hx-target="#main-content"
+                           hx-push-url="true"
+                           class="text-sm font-medium text-indigo-600 hover:text-indigo-800">
+                            {{.Name}}
+                        </a>
+                    </td>
+                    <td class="px-6 py-4">
+                        {{if eq (printf "%s" .Type) "header"}}
+                        <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">header</span>
+                        {{else if eq (printf "%s" .Type) "footer"}}
+                        <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">footer</span>
+                        {{else if eq (printf "%s" .Type) "page"}}
+                        <span class="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">page</span>
+                        {{else}}
+                        <span class="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">article_loop</span>
+                        {{end}}
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-500">v{{.Version}}</td>
+                    <td class="px-6 py-4">
+                        {{if .IsActive}}
+                        <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">Active</span>
+                        {{else}}
+                        <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">Inactive</span>
+                        {{end}}
+                    </td>
+                    <td class="px-6 py-4 text-right text-sm space-x-2">
+                        {{if not .IsActive}}
+                        <form method="POST" action="/admin/templates/{{.ID}}/activate" class="inline"
+                              hx-post="/admin/templates/{{.ID}}/activate"
+                              hx-target="#main-content">
+                            <button type="submit" class="text-green-600 hover:text-green-800">Activate</button>
+                        </form>
+                        {{end}}
+                        <a href="/admin/templates/{{.ID}}"
+                           hx-get="/admin/templates/{{.ID}}"
+                           hx-target="#main-content"
+                           hx-push-url="true"
+                           class="text-indigo-600 hover:text-indigo-800">Edit</a>
+                        {{if not .IsActive}}
+                        <button hx-delete="/admin/templates/{{.ID}}"
+                                hx-target="#main-content"
+                                hx-confirm="Delete this template?"
+                                class="text-red-600 hover:text-red-800">Delete</button>
+                        {{end}}
+                    </td>
+                </tr>
+                {{end}}
+                {{else}}
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-sm text-gray-500">
+                        <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
+                        </svg>
+                        No templates yet. Create header, footer, and page templates to render your public site.
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
     </div>
 </div>
 {{end}}

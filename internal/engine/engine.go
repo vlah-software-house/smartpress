@@ -1,0 +1,204 @@
+// Package engine provides the dynamic template rendering engine for public
+// pages. It loads AI-generated templates from the database, compiles them
+// as Go html/templates, and renders public pages by injecting content data.
+package engine
+
+import (
+	"bytes"
+	"fmt"
+	"html/template"
+	"log/slog"
+	"time"
+
+	"smartpress/internal/models"
+	"smartpress/internal/store"
+)
+
+// PageData holds all variables available to a page template when rendering
+// a public page. Template authors (or AI) can use these as {{.Title}}, etc.
+type PageData struct {
+	SiteName        string
+	Title           string
+	Body            template.HTML // Content body — raw HTML from editor
+	Excerpt         string
+	MetaDescription string
+	MetaKeywords    string
+	Slug            string
+	PublishedAt     string
+	Header          template.HTML // Pre-rendered header fragment
+	Footer          template.HTML // Pre-rendered footer fragment
+	Year            int
+}
+
+// PostItem represents a single post in a listing (used by article_loop template).
+type PostItem struct {
+	Title       string
+	Slug        string
+	Excerpt     string
+	PublishedAt string
+}
+
+// ListData holds variables available to the article_loop template.
+type ListData struct {
+	SiteName string
+	Title    string
+	Posts    []PostItem
+	Header   template.HTML
+	Footer   template.HTML
+	Year     int
+}
+
+// Engine compiles and renders templates from the database.
+type Engine struct {
+	templateStore *store.TemplateStore
+}
+
+// New creates a new template rendering engine.
+func New(templateStore *store.TemplateStore) *Engine {
+	return &Engine{templateStore: templateStore}
+}
+
+// RenderPage renders a content item using the active page template,
+// header, and footer. Returns the complete HTML as a byte slice.
+func (e *Engine) RenderPage(content *models.Content) ([]byte, error) {
+	// Load active templates for each component.
+	header, err := e.renderFragment(models.TemplateTypeHeader, nil)
+	if err != nil {
+		slog.Warn("header template not found or failed", "error", err)
+		header = ""
+	}
+
+	footer, err := e.renderFragment(models.TemplateTypeFooter, nil)
+	if err != nil {
+		slog.Warn("footer template not found or failed", "error", err)
+		footer = ""
+	}
+
+	// Load the active page template.
+	pageTmpl, err := e.templateStore.FindActiveByType(models.TemplateTypePage)
+	if err != nil || pageTmpl == nil {
+		return nil, fmt.Errorf("no active page template found")
+	}
+
+	// Build the data for the page template.
+	publishedAt := ""
+	if content.PublishedAt != nil {
+		publishedAt = content.PublishedAt.Format("January 2, 2006")
+	}
+
+	data := PageData{
+		SiteName:        "SmartPress",
+		Title:           content.Title,
+		Body:            template.HTML(content.Body),
+		Slug:            content.Slug,
+		PublishedAt:     publishedAt,
+		Header:          template.HTML(header),
+		Footer:          template.HTML(footer),
+		Year:            time.Now().Year(),
+	}
+
+	if content.Excerpt != nil {
+		data.Excerpt = *content.Excerpt
+	}
+	if content.MetaDescription != nil {
+		data.MetaDescription = *content.MetaDescription
+	}
+	if content.MetaKeywords != nil {
+		data.MetaKeywords = *content.MetaKeywords
+	}
+
+	// Compile and execute the page template.
+	return e.compileAndRender(pageTmpl.HTMLContent, data)
+}
+
+// RenderPostList renders the article_loop template with a list of posts.
+func (e *Engine) RenderPostList(posts []models.Content) ([]byte, error) {
+	header, err := e.renderFragment(models.TemplateTypeHeader, nil)
+	if err != nil {
+		slog.Warn("header template not found or failed", "error", err)
+		header = ""
+	}
+
+	footer, err := e.renderFragment(models.TemplateTypeFooter, nil)
+	if err != nil {
+		slog.Warn("footer template not found or failed", "error", err)
+		footer = ""
+	}
+
+	loopTmpl, err := e.templateStore.FindActiveByType(models.TemplateTypeArticleLoop)
+	if err != nil || loopTmpl == nil {
+		return nil, fmt.Errorf("no active article_loop template found")
+	}
+
+	var postItems []PostItem
+	for _, p := range posts {
+		item := PostItem{
+			Title: p.Title,
+			Slug:  p.Slug,
+		}
+		if p.Excerpt != nil {
+			item.Excerpt = *p.Excerpt
+		}
+		if p.PublishedAt != nil {
+			item.PublishedAt = p.PublishedAt.Format("January 2, 2006")
+		}
+		postItems = append(postItems, item)
+	}
+
+	data := ListData{
+		SiteName: "SmartPress",
+		Title:    "Blog",
+		Posts:    postItems,
+		Header:   template.HTML(header),
+		Footer:   template.HTML(footer),
+		Year:     time.Now().Year(),
+	}
+
+	return e.compileAndRender(loopTmpl.HTMLContent, data)
+}
+
+// ValidateTemplate attempts to compile a template string and returns an
+// error if the Go template syntax is invalid. Used before saving to DB.
+func (e *Engine) ValidateTemplate(htmlContent string) error {
+	_, err := template.New("validate").Parse(htmlContent)
+	if err != nil {
+		return fmt.Errorf("invalid template syntax: %w", err)
+	}
+	return nil
+}
+
+// ValidateAndRender compiles a template string and renders it with the
+// given data. Used for live preview in the admin panel.
+func (e *Engine) ValidateAndRender(htmlContent string, data any) ([]byte, error) {
+	return e.compileAndRender(htmlContent, data)
+}
+
+// renderFragment loads and renders a template fragment (header or footer).
+func (e *Engine) renderFragment(tmplType models.TemplateType, data any) (string, error) {
+	tmpl, err := e.templateStore.FindActiveByType(tmplType)
+	if err != nil || tmpl == nil {
+		return "", fmt.Errorf("no active %s template", tmplType)
+	}
+
+	result, err := e.compileAndRender(tmpl.HTMLContent, data)
+	if err != nil {
+		return "", err
+	}
+
+	return string(result), nil
+}
+
+// compileAndRender compiles a template string and executes it with the given data.
+func (e *Engine) compileAndRender(tmplContent string, data any) ([]byte, error) {
+	tmpl, err := template.New("page").Parse(tmplContent)
+	if err != nil {
+		return nil, fmt.Errorf("compile template: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return nil, fmt.Errorf("execute template: %w", err)
+	}
+
+	return buf.Bytes(), nil
+}

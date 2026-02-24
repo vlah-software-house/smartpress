@@ -156,6 +156,37 @@ func (s *ContentStore) Delete(id uuid.UUID) error {
 	return nil
 }
 
+// ListPublishedByType returns all published content of the given type,
+// ordered by published date descending. Used for public page rendering.
+func (s *ContentStore) ListPublishedByType(contentType models.ContentType) ([]models.Content, error) {
+	rows, err := s.db.Query(`
+		SELECT id, type, title, slug, body, excerpt, status,
+		       meta_description, meta_keywords, author_id,
+		       published_at, created_at, updated_at
+		FROM content
+		WHERE type = $1 AND status = 'published'
+		ORDER BY published_at DESC NULLS LAST
+	`, contentType)
+	if err != nil {
+		return nil, fmt.Errorf("list published content: %w", err)
+	}
+	defer rows.Close()
+
+	var items []models.Content
+	for rows.Next() {
+		var c models.Content
+		if err := rows.Scan(
+			&c.ID, &c.Type, &c.Title, &c.Slug, &c.Body, &c.Excerpt,
+			&c.Status, &c.MetaDescription, &c.MetaKeywords, &c.AuthorID,
+			&c.PublishedAt, &c.CreatedAt, &c.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan content: %w", err)
+		}
+		items = append(items, c)
+	}
+	return items, rows.Err()
+}
+
 // CountByType returns the number of content items of the given type.
 func (s *ContentStore) CountByType(contentType models.ContentType) (int, error) {
 	var count int

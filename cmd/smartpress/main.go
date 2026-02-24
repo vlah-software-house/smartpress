@@ -15,6 +15,7 @@ import (
 	"smartpress/internal/cache"
 	"smartpress/internal/config"
 	"smartpress/internal/database"
+	"smartpress/internal/engine"
 	"smartpress/internal/handlers"
 	"smartpress/internal/render"
 	"smartpress/internal/router"
@@ -84,13 +85,18 @@ func main() {
 	// Initialize data stores.
 	userStore := store.NewUserStore(db)
 	contentStore := store.NewContentStore(db)
+	templateStore := store.NewTemplateStore(db)
+
+	// Initialize the dynamic template engine for public page rendering.
+	eng := engine.New(templateStore)
 
 	// Create handler groups with their dependencies.
-	adminHandlers := handlers.NewAdmin(renderer, sessionStore, contentStore, userStore)
+	adminHandlers := handlers.NewAdmin(renderer, sessionStore, contentStore, userStore, templateStore, eng)
 	authHandlers := handlers.NewAuth(renderer, sessionStore, userStore)
+	publicHandlers := handlers.NewPublic(eng, contentStore)
 
 	// Set up the Chi router with all middleware and routes.
-	r := router.New(sessionStore, adminHandlers, authHandlers)
+	r := router.New(sessionStore, adminHandlers, authHandlers, publicHandlers)
 
 	// Create the HTTP server with sensible timeouts.
 	srv := &http.Server{

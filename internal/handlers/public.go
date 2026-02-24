@@ -1,0 +1,105 @@
+package handlers
+
+import (
+	"fmt"
+	"log/slog"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+
+	"smartpress/internal/engine"
+	"smartpress/internal/models"
+	"smartpress/internal/store"
+)
+
+// Public groups handlers for the public-facing site rendered by the
+// dynamic template engine.
+type Public struct {
+	engine       *engine.Engine
+	contentStore *store.ContentStore
+}
+
+// NewPublic creates a new Public handler group.
+func NewPublic(eng *engine.Engine, contentStore *store.ContentStore) *Public {
+	return &Public{
+		engine:       eng,
+		contentStore: contentStore,
+	}
+}
+
+// Homepage renders the site homepage. If an article_loop template is active,
+// it renders a blog-style post listing. Otherwise, it looks for a page with
+// slug "home" or falls back to a simple default.
+func (p *Public) Homepage(w http.ResponseWriter, r *http.Request) {
+	// Try to render a blog-style homepage with the article_loop template.
+	posts, err := p.contentStore.ListPublishedByType(models.ContentTypePost)
+	if err != nil {
+		slog.Error("list published posts failed", "error", err)
+	}
+
+	if len(posts) > 0 {
+		html, err := p.engine.RenderPostList(posts)
+		if err == nil {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write(html)
+			return
+		}
+		slog.Warn("article_loop render failed, trying homepage", "error", err)
+	}
+
+	// Fall back to a "home" page if it exists.
+	home, err := p.contentStore.FindBySlug("home")
+	if err == nil && home != nil {
+		html, err := p.engine.RenderPage(home)
+		if err == nil {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write(html)
+			return
+		}
+		slog.Warn("homepage render failed", "error", err)
+	}
+
+	// Default fallback when no templates or content exist yet.
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte(`<!DOCTYPE html>
+<html><head><title>SmartPress</title>
+<script src="https://cdn.tailwindcss.com"></script></head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+<div class="text-center">
+<h1 class="text-4xl font-bold text-gray-900"><span class="text-indigo-600">Smart</span>Press</h1>
+<p class="mt-2 text-gray-500">Your site is running. Set up templates in the admin panel.</p>
+<a href="/admin/login" class="mt-4 inline-block text-indigo-600 hover:text-indigo-800 text-sm">Go to Admin Panel</a>
+</div></body></html>`))
+}
+
+// Page renders a public page or post by its slug using the template engine.
+func (p *Public) Page(w http.ResponseWriter, r *http.Request) {
+	slugParam := chi.URLParam(r, "slug")
+
+	content, err := p.contentStore.FindBySlug(slugParam)
+	if err != nil {
+		slog.Error("find content by slug failed", "error", err, "slug", slugParam)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	if content == nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	html, err := p.engine.RenderPage(content)
+	if err != nil {
+		slog.Error("render page failed", "error", err, "slug", slugParam)
+		// Fall back to raw content if template engine fails.
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintf(w, `<!DOCTYPE html><html><head><title>%s</title>
+<script src="https://cdn.tailwindcss.com"></script></head>
+<body class="max-w-3xl mx-auto p-8"><h1 class="text-3xl font-bold mb-4">%s</h1>
+<div>%s</div></body></html>`, content.Title, content.Title, content.Body)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(html)
+}
