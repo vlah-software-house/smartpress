@@ -52,6 +52,13 @@ func New() (*Renderer, error) {
 				}
 				return "text-gray-300 hover:bg-gray-700 hover:text-white"
 			},
+			// deref safely dereferences a string pointer for use in templates.
+			"deref": func(s *string) string {
+				if s == nil {
+					return ""
+				}
+				return *s
+			},
 		},
 	}
 

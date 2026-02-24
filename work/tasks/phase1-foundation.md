@@ -41,9 +41,14 @@
 - [x] CSRF token context injection (works on first visit)
 
 ## Step 5: CRUD for Pages & Posts
-- [ ] User authentication (login page, session management)
-- [ ] Pages: list, create, edit, delete
-- [ ] Posts: list, create, edit, delete
-- [ ] Text editor integration (Quill/Trix)
-- [ ] Slug auto-generation
-- [ ] Draft/publish status toggle
+- [x] User authentication (login + logout with bcrypt)
+- [x] 2FA with TOTP (QR code setup, mandatory, no disable, admin reset)
+- [x] Store layer (UserStore, ContentStore) for DB access
+- [x] Pages: list, create, edit, delete
+- [x] Posts: list, create, edit, delete
+- [x] Text editor integration (Quill CDN with visual/HTML toggle)
+- [x] Slug auto-generation (Go + JavaScript real-time)
+- [x] Draft/publish status toggle
+- [x] SEO metadata fields (excerpt, meta description, meta keywords)
+- [x] Dashboard with real database stats
+- [x] Users list with 2FA status + admin reset

@@ -15,7 +15,7 @@ import (
 
 // New creates and returns the configured Chi router with all middleware
 // and route groups wired up.
-func New(sessionStore *session.Store, admin *handlers.Admin) chi.Router {
+func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth) chi.Router {
 	r := chi.NewRouter()
 
 	// Global middleware — applied to every request.
@@ -31,16 +31,16 @@ func New(sessionStore *session.Store, admin *handlers.Admin) chi.Router {
 		r.Use(middleware.CSRF)
 
 		// Auth pages — accessible without a session.
-		r.Get("/login", admin.LoginPage)
-		r.Post("/login", placeholderHandler("Login Submit"))
-		r.Post("/logout", placeholderHandler("Logout"))
+		r.Get("/login", auth.LoginPage)
+		r.Post("/login", auth.LoginSubmit)
+		r.Post("/logout", auth.Logout)
 
-		// 2FA setup — requires auth but NOT completed 2FA (chicken-and-egg).
+		// 2FA — requires auth but NOT completed 2FA.
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.RequireAuth)
-			r.Get("/2fa/setup", placeholderHandler("2FA Setup Page"))
-			r.Post("/2fa/setup", placeholderHandler("2FA Setup Submit"))
-			r.Post("/2fa/verify", placeholderHandler("2FA Verify"))
+			r.Get("/2fa/setup", auth.TwoFASetupPage)
+			r.Get("/2fa/verify", auth.TwoFAVerifyPage)
+			r.Post("/2fa/verify", auth.TwoFAVerifySubmit)
 		})
 
 		// Authenticated + 2FA-verified admin area.
@@ -52,50 +52,40 @@ func New(sessionStore *session.Store, admin *handlers.Admin) chi.Router {
 			r.Get("/", admin.Dashboard)
 			r.Get("/dashboard", admin.Dashboard)
 
-			// Content management (posts + pages)
+			// Posts
 			r.Route("/posts", func(r chi.Router) {
 				r.Get("/", admin.PostsList)
-				r.Get("/new", placeholderHandler("New Post"))
-				r.Post("/", placeholderHandler("Create Post"))
-				r.Get("/{id}", placeholderHandler("Edit Post"))
-				r.Put("/{id}", placeholderHandler("Update Post"))
-				r.Delete("/{id}", placeholderHandler("Delete Post"))
+				r.Get("/new", admin.PostNew)
+				r.Post("/", admin.PostCreate)
+				r.Get("/{id}", admin.PostEdit)
+				r.Put("/{id}", admin.PostUpdate)
+				r.Delete("/{id}", admin.PostDelete)
 			})
 
+			// Pages
 			r.Route("/pages", func(r chi.Router) {
 				r.Get("/", admin.PagesList)
-				r.Get("/new", placeholderHandler("New Page"))
-				r.Post("/", placeholderHandler("Create Page"))
-				r.Get("/{id}", placeholderHandler("Edit Page"))
-				r.Put("/{id}", placeholderHandler("Update Page"))
-				r.Delete("/{id}", placeholderHandler("Delete Page"))
+				r.Get("/new", admin.PageNew)
+				r.Post("/", admin.PageCreate)
+				r.Get("/{id}", admin.PageEdit)
+				r.Put("/{id}", admin.PageUpdate)
+				r.Delete("/{id}", admin.PageDelete)
 			})
 
-			// Template management (AI Design)
+			// Templates (AI Design)
 			r.Route("/templates", func(r chi.Router) {
 				r.Get("/", admin.TemplatesList)
-				r.Get("/new", placeholderHandler("New Template"))
-				r.Post("/", placeholderHandler("Create Template"))
-				r.Get("/{id}", placeholderHandler("Edit Template"))
-				r.Put("/{id}", placeholderHandler("Update Template"))
-				r.Delete("/{id}", placeholderHandler("Delete Template"))
 			})
 
 			// User management — admin only
 			r.Route("/users", func(r chi.Router) {
 				r.Use(middleware.RequireAdmin)
 				r.Get("/", admin.UsersList)
-				r.Get("/new", placeholderHandler("New User"))
-				r.Post("/", placeholderHandler("Create User"))
-				r.Get("/{id}", placeholderHandler("Edit User"))
-				r.Put("/{id}", placeholderHandler("Update User"))
-				r.Delete("/{id}", placeholderHandler("Delete User"))
-				r.Post("/{id}/reset-2fa", placeholderHandler("Reset User 2FA"))
+				r.Post("/{id}/reset-2fa", admin.UserResetTwoFA)
 			})
 
 			// Settings
 			r.Get("/settings", admin.SettingsPage)
-			r.Put("/settings", placeholderHandler("Update Settings"))
 		})
 	})
 
@@ -115,8 +105,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"status":"ok"}`))
 }
 
-// placeholderHandler returns a handler that displays a placeholder page
-// name. These will be replaced with real handlers in subsequent steps.
+// placeholderHandler returns a handler that displays a placeholder page name.
 func placeholderHandler(name string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")

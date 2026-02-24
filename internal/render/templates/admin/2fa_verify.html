@@ -1,50 +1,28 @@
-{{define "2fa_setup.html"}}
+{{define "2fa_verify.html"}}
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-gray-100">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Set Up Two-Factor Authentication — SmartPress</title>
+    <title>Two-Factor Authentication — SmartPress</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
 </head>
 <body class="h-full flex items-center justify-center"
       hx-headers='{"X-CSRF-Token": "{{.CSRFToken}}"}'>
 
-    <div class="w-full max-w-md mx-auto">
+    <div class="w-full max-w-sm mx-auto">
         <div class="text-center mb-8">
             <h1 class="text-3xl font-bold text-gray-900 tracking-tight">
                 <span class="text-indigo-600">Smart</span>Press
             </h1>
-            <p class="mt-2 text-sm text-gray-600">Set up two-factor authentication to secure your account</p>
+            <p class="mt-2 text-sm text-gray-600">Enter your authenticator code to continue</p>
         </div>
 
         <div class="bg-white rounded-lg shadow-md p-8">
             {{if and .Data .Data.Error}}
             <div class="mb-4 rounded-md bg-red-50 border border-red-200 p-3">
                 <p class="text-sm text-red-800">{{.Data.Error}}</p>
-            </div>
-            {{end}}
-
-            <h2 class="text-lg font-semibold text-gray-900 mb-4">Scan QR Code</h2>
-
-            <p class="text-sm text-gray-600 mb-6">
-                Scan this QR code with your authenticator app (Google Authenticator, Authy, 1Password, etc.),
-                then enter the 6-digit code below to verify.
-            </p>
-
-            <!-- QR code from server -->
-            {{if and .Data .Data.QRCode}}
-            <div class="flex justify-center mb-4">
-                <img src="data:image/png;base64,{{.Data.QRCode}}" alt="2FA QR Code" class="w-48 h-48 rounded-lg">
-            </div>
-            {{end}}
-
-            <!-- Manual entry fallback -->
-            {{if and .Data .Data.Secret}}
-            <div class="mb-6 p-3 bg-gray-50 rounded-md border border-gray-200 text-center">
-                <p class="text-xs text-gray-500 mb-1">Or enter this code manually:</p>
-                <code class="text-sm font-mono text-gray-800 select-all">{{.Data.Secret}}</code>
             </div>
             {{end}}
 
@@ -69,15 +47,19 @@
                             class="w-full flex justify-center rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold
                                    text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2
                                    focus:ring-indigo-600 focus:ring-offset-2 transition-colors">
-                        Verify &amp; Activate
+                        Verify
                     </button>
                 </div>
             </form>
         </div>
+
+        <p class="mt-6 text-center text-xs text-gray-500">
+            Open your authenticator app to get the code.
+        </p>
     </div>
 </body>
 </html>
 {{end}}
 
-{{define "title"}}2FA Setup{{end}}
+{{define "title"}}Two-Factor Authentication{{end}}
 {{define "content"}}{{end}}

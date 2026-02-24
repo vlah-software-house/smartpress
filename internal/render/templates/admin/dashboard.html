@@ -21,7 +21,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium text-gray-500">Total Posts</p>
-                    <p class="text-2xl font-semibold text-gray-900">0</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{if .Data}}{{.Data.PostCount}}{{else}}0{{end}}</p>
                 </div>
             </div>
         </div>
@@ -35,7 +35,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium text-gray-500">Total Pages</p>
-                    <p class="text-2xl font-semibold text-gray-900">0</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{if .Data}}{{.Data.PageCount}}{{else}}0{{end}}</p>
                 </div>
             </div>
         </div>
@@ -63,7 +63,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium text-gray-500">Users</p>
-                    <p class="text-2xl font-semibold text-gray-900">1</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{if .Data}}{{.Data.UserCount}}{{else}}0{{end}}</p>
                 </div>
             </div>
         </div>
