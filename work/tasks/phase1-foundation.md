@@ -10,13 +10,14 @@
 - [x] Create config loader (`internal/config/config.go`)
 
 ## Step 2: Database Schema & Migrations
-- [ ] Choose and integrate migration tool
-- [ ] Design schema: `users` table (roles, auth)
-- [ ] Design schema: `posts` table (title, slug, content, meta, status)
-- [ ] Design schema: `pages` table (or unified with posts via type field)
-- [ ] Design schema: `templates` table (html_content, version, is_active, type)
-- [ ] Design schema: `cache_invalidation_log` table
-- [ ] Write database seeding scripts
+- [x] Choose and integrate migration tool (goose v3)
+- [x] Design schema: `users` table (roles, auth, 2FA with TOTP)
+- [x] Design schema: `content` table (unified posts+pages via type field)
+- [x] Design schema: `templates` table (html_content, version, is_active, type)
+- [x] Design schema: `cache_invalidation_log` table
+- [x] Write database seeding scripts (default admin user)
+- [x] Create Go models (User, Content, Template)
+- [x] Wire database connect → migrate → seed into main.go
 
 ## Step 3: Go Server & Router
 - [ ] Integrate Chi router

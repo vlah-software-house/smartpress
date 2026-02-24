@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"smartpress/internal/config"
+	"smartpress/internal/database"
 )
 
 func main() {
@@ -34,7 +35,28 @@ func main() {
 		"addr", cfg.Addr(),
 	)
 
-	// TODO: Initialize database connection
+	// Connect to PostgreSQL.
+	db, err := database.Connect(cfg.DSN())
+	if err != nil {
+		slog.Error("failed to connect to database", "error", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	// Run pending migrations.
+	if err := database.Migrate(db); err != nil {
+		slog.Error("failed to run migrations", "error", err)
+		os.Exit(1)
+	}
+
+	// Seed development data (no-op if data already exists).
+	if cfg.IsDev() {
+		if err := database.Seed(db); err != nil {
+			slog.Error("failed to seed database", "error", err)
+			os.Exit(1)
+		}
+	}
+
 	// TODO: Initialize Valkey cache connection
 	// TODO: Set up Chi router with middleware and routes
 

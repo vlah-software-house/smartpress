@@ -53,6 +53,7 @@ Follow this exact sequence for every new task, feature, fix, or patch:
   * Keep manifests updated, modular, and customizable for multiple environments (e.g., using Kustomize or Helm if appropriate, or structured manifest directories).  
 * **Seeding Data:** Write and maintain database seeding scripts/manifests based on the application specifications to ensure a populated testing environment.  
 * **Secrets Management:** Use a .secrets file for all environment variables provided by the user for prepared services in the testing environment. **Always ask the user for any missing variables** before attempting to run services. Do not hardcode secrets.
+* **Database Management** Use the postgres user password to check existance of defined database name, and user that must be it's owner.
 
 ## **6\. AI Tool Coordination & Delegation**
 
