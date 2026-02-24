@@ -15,6 +15,8 @@ import (
 	"smartpress/internal/cache"
 	"smartpress/internal/config"
 	"smartpress/internal/database"
+	"smartpress/internal/handlers"
+	"smartpress/internal/render"
 	"smartpress/internal/router"
 	"smartpress/internal/session"
 )
@@ -71,8 +73,18 @@ func main() {
 	// Initialize session store backed by Valkey.
 	sessionStore := session.NewStore(valkeyClient)
 
+	// Initialize the HTML template renderer for admin pages.
+	renderer, err := render.New()
+	if err != nil {
+		slog.Error("failed to initialize template renderer", "error", err)
+		os.Exit(1)
+	}
+
+	// Create handler groups with their dependencies.
+	adminHandlers := handlers.NewAdmin(renderer, sessionStore, db)
+
 	// Set up the Chi router with all middleware and routes.
-	r := router.New(sessionStore)
+	r := router.New(sessionStore, adminHandlers)
 
 	// Create the HTTP server with sensible timeouts.
 	srv := &http.Server{

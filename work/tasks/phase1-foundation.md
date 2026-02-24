@@ -31,10 +31,14 @@
 - [x] Valkey client connection (`internal/cache/valkey.go`)
 
 ## Step 4: Admin UI Layout
-- [ ] Admin HTML shell (sidebar, top bar, main content area)
-- [ ] TailwindCSS integration (CDN for dev)
-- [ ] HTMX-powered navigation (hx-get, hx-target)
-- [ ] AlpineJS for dropdowns, modals, ephemeral state
+- [x] Admin HTML shell (sidebar, top bar, main content area)
+- [x] TailwindCSS integration (CDN for dev)
+- [x] HTMX-powered navigation (hx-get, hx-target="#main-content", hx-push-url)
+- [x] AlpineJS for dropdowns, modals, mobile sidebar
+- [x] Template renderer with full-page / HTMX-partial auto-detection
+- [x] 9 admin templates (base, login, 2fa, dashboard, posts, pages, templates, users, settings)
+- [x] Handler group with dependency injection (renderer, sessions, DB)
+- [x] CSRF token context injection (works on first visit)
 
 ## Step 5: CRUD for Pages & Posts
 - [ ] User authentication (login page, session management)

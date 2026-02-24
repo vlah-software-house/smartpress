@@ -8,13 +8,14 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"smartpress/internal/handlers"
 	"smartpress/internal/middleware"
 	"smartpress/internal/session"
 )
 
 // New creates and returns the configured Chi router with all middleware
 // and route groups wired up.
-func New(sessionStore *session.Store) chi.Router {
+func New(sessionStore *session.Store, admin *handlers.Admin) chi.Router {
 	r := chi.NewRouter()
 
 	// Global middleware — applied to every request.
@@ -30,7 +31,7 @@ func New(sessionStore *session.Store) chi.Router {
 		r.Use(middleware.CSRF)
 
 		// Auth pages — accessible without a session.
-		r.Get("/login", placeholderHandler("Login Page"))
+		r.Get("/login", admin.LoginPage)
 		r.Post("/login", placeholderHandler("Login Submit"))
 		r.Post("/logout", placeholderHandler("Logout"))
 
@@ -48,12 +49,12 @@ func New(sessionStore *session.Store) chi.Router {
 			r.Use(middleware.Require2FA)
 
 			// Dashboard
-			r.Get("/", placeholderHandler("Dashboard"))
-			r.Get("/dashboard", placeholderHandler("Dashboard"))
+			r.Get("/", admin.Dashboard)
+			r.Get("/dashboard", admin.Dashboard)
 
 			// Content management (posts + pages)
 			r.Route("/posts", func(r chi.Router) {
-				r.Get("/", placeholderHandler("List Posts"))
+				r.Get("/", admin.PostsList)
 				r.Get("/new", placeholderHandler("New Post"))
 				r.Post("/", placeholderHandler("Create Post"))
 				r.Get("/{id}", placeholderHandler("Edit Post"))
@@ -62,7 +63,7 @@ func New(sessionStore *session.Store) chi.Router {
 			})
 
 			r.Route("/pages", func(r chi.Router) {
-				r.Get("/", placeholderHandler("List Pages"))
+				r.Get("/", admin.PagesList)
 				r.Get("/new", placeholderHandler("New Page"))
 				r.Post("/", placeholderHandler("Create Page"))
 				r.Get("/{id}", placeholderHandler("Edit Page"))
@@ -72,7 +73,7 @@ func New(sessionStore *session.Store) chi.Router {
 
 			// Template management (AI Design)
 			r.Route("/templates", func(r chi.Router) {
-				r.Get("/", placeholderHandler("List Templates"))
+				r.Get("/", admin.TemplatesList)
 				r.Get("/new", placeholderHandler("New Template"))
 				r.Post("/", placeholderHandler("Create Template"))
 				r.Get("/{id}", placeholderHandler("Edit Template"))
@@ -83,7 +84,7 @@ func New(sessionStore *session.Store) chi.Router {
 			// User management — admin only
 			r.Route("/users", func(r chi.Router) {
 				r.Use(middleware.RequireAdmin)
-				r.Get("/", placeholderHandler("List Users"))
+				r.Get("/", admin.UsersList)
 				r.Get("/new", placeholderHandler("New User"))
 				r.Post("/", placeholderHandler("Create User"))
 				r.Get("/{id}", placeholderHandler("Edit User"))
@@ -93,7 +94,7 @@ func New(sessionStore *session.Store) chi.Router {
 			})
 
 			// Settings
-			r.Get("/settings", placeholderHandler("Settings"))
+			r.Get("/settings", admin.SettingsPage)
 			r.Put("/settings", placeholderHandler("Update Settings"))
 		})
 	})

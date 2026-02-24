@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/hex"
@@ -20,6 +21,11 @@ const (
 
 	// CSRFFormField is the hidden form field name for non-HTMX forms.
 	CSRFFormField = "csrf_token"
+
+	// csrfContextKey stores the CSRF token in the request context so
+	// templates can access it even on the first request (before the
+	// cookie round-trips back from the browser).
+	csrfContextKey contextKey = "csrf_token"
 )
 
 // CSRF provides double-submit cookie CSRF protection. It generates a
@@ -31,10 +37,12 @@ const (
 // CSRF token so all HTMX requests include it automatically.
 func CSRF(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var token string
+
 		// Ensure a CSRF token cookie exists.
 		cookie, err := r.Cookie(CSRFCookieName)
 		if err != nil || cookie.Value == "" {
-			token, err := generateCSRFToken()
+			token, err = generateCSRFToken()
 			if err != nil {
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 				return
@@ -47,8 +55,13 @@ func CSRF(next http.Handler) http.Handler {
 				Secure:   false, // Set to true behind TLS
 				SameSite: http.SameSiteStrictMode,
 			})
-			cookie = &http.Cookie{Value: token}
+		} else {
+			token = cookie.Value
 		}
+
+		// Store the token in context so templates can always access it.
+		ctx := context.WithValue(r.Context(), csrfContextKey, token)
+		r = r.WithContext(ctx)
 
 		// Safe methods don't need CSRF validation.
 		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
@@ -63,7 +76,7 @@ func CSRF(next http.Handler) http.Handler {
 			submitted = r.FormValue(CSRFFormField)
 		}
 
-		if subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(submitted)) != 1 {
+		if subtle.ConstantTimeCompare([]byte(token), []byte(submitted)) != 1 {
 			http.Error(w, "CSRF token mismatch", http.StatusForbidden)
 			return
 		}
@@ -72,14 +85,12 @@ func CSRF(next http.Handler) http.Handler {
 	})
 }
 
-// GetCSRFToken extracts the current CSRF token from the request cookie.
-// Used in templates to populate hidden fields and HTMX headers.
-func GetCSRFToken(r *http.Request) string {
-	cookie, err := r.Cookie(CSRFCookieName)
-	if err != nil {
-		return ""
-	}
-	return cookie.Value
+// CSRFTokenFromCtx extracts the CSRF token from the request context.
+// This is the preferred way to get the token in templates — it works
+// even on the first request before the cookie round-trips.
+func CSRFTokenFromCtx(ctx context.Context) string {
+	token, _ := ctx.Value(csrfContextKey).(string)
+	return token
 }
 
 // generateCSRFToken creates a cryptographically random token.
@@ -90,4 +101,3 @@ func generateCSRFToken() (string, error) {
 	}
 	return hex.EncodeToString(b), nil
 }
-
