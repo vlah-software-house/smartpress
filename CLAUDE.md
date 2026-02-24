@@ -55,7 +55,7 @@ Follow this exact sequence for every new task, feature, fix, or patch:
 * **Secrets Management:** Two environment files exist, both gitignored:
   * **`.secrets`** — Testing/staging environment credentials for Kubernetes deployment and human QA. Contains DB credentials for the remote testing cluster, Valkey credentials, testing URL, and AI API keys. **Always ask the user for any missing variables** before deploying. Do not hardcode secrets.
   * **`.env`** — Local development configuration. The AI agent may freely create and manage this file with whatever credentials are needed for local Docker services (PostgreSQL, Valkey). AI provider keys may be copied from `.secrets` for local use since they are service-level keys, not environment-specific.
-* **Database Management:** Use the postgres user password to check existence of defined database name, and user that must be its owner.
+* **Database Management:** Use the postgres user password to check existence of defined database name, and user that must be its owner. Managed database host, postgres user password, user and password should be availalbe in .secrets`
 
 ## **6\. AI Provider Integration**
 

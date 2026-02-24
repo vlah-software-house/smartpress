@@ -4,6 +4,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"smartpress/internal/cache"
 	"smartpress/internal/engine"
 	"smartpress/internal/middleware"
 	"smartpress/internal/models"
@@ -46,11 +48,13 @@ type Admin struct {
 	userStore     *store.UserStore
 	templateStore *store.TemplateStore
 	engine        *engine.Engine
+	pageCache     *cache.PageCache
+	cacheLog      *store.CacheLogStore
 	aiConfig      *AIConfig
 }
 
 // NewAdmin creates a new Admin handler group with the given dependencies.
-func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, eng *engine.Engine, aiCfg *AIConfig) *Admin {
+func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, eng *engine.Engine, pageCache *cache.PageCache, cacheLog *store.CacheLogStore, aiCfg *AIConfig) *Admin {
 	return &Admin{
 		renderer:      renderer,
 		sessions:      sessions,
@@ -58,6 +62,8 @@ func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *
 		userStore:     userStore,
 		templateStore: templateStore,
 		engine:        eng,
+		pageCache:     pageCache,
+		cacheLog:      cacheLog,
 		aiConfig:      aiCfg,
 	}
 }
@@ -215,7 +221,7 @@ func (a *Admin) createContent(w http.ResponseWriter, r *http.Request, contentTyp
 		c.MetaKeywords = &metaKw
 	}
 
-	_, err := a.contentStore.Create(c)
+	created, err := a.contentStore.Create(c)
 	if err != nil {
 		slog.Error("create content failed", "error", err, "type", contentType)
 		section := "posts"
@@ -234,6 +240,9 @@ func (a *Admin) createContent(w http.ResponseWriter, r *http.Request, contentTyp
 		})
 		return
 	}
+
+	// Invalidate cache for the new content (homepage may show it in listings).
+	a.invalidateContentCache(r.Context(), created.ID, created.Slug, "create")
 
 	if contentType == models.ContentTypePage {
 		http.Redirect(w, r, "/admin/pages", http.StatusSeeOther)
@@ -334,6 +343,7 @@ func (a *Admin) updateContent(w http.ResponseWriter, r *http.Request, section st
 		return
 	}
 
+	a.invalidateContentCache(r.Context(), item.ID, item.Slug, "update")
 	http.Redirect(w, r, "/admin/"+section, http.StatusSeeOther)
 }
 
@@ -346,8 +356,13 @@ func (a *Admin) deleteContent(w http.ResponseWriter, r *http.Request, section st
 		return
 	}
 
+	// Look up the slug before deleting so we can invalidate its cache entry.
+	item, _ := a.contentStore.FindByID(id)
+
 	if err := a.contentStore.Delete(id); err != nil {
 		slog.Error("delete content failed", "error", err)
+	} else if item != nil {
+		a.invalidateContentCache(r.Context(), id, item.Slug, "delete")
 	}
 
 	http.Redirect(w, r, "/admin/"+section, http.StatusSeeOther)
@@ -404,7 +419,7 @@ func (a *Admin) TemplateCreate(w http.ResponseWriter, r *http.Request) {
 		HTMLContent: htmlContent,
 	}
 
-	_, err := a.templateStore.Create(t)
+	created, err := a.templateStore.Create(t)
 	if err != nil {
 		slog.Error("create template failed", "error", err)
 		a.renderer.Page(w, r, "template_form", &render.PageData{
@@ -419,6 +434,8 @@ func (a *Admin) TemplateCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// New templates aren't active yet, but log the event for auditing.
+	a.cacheLog.Log("template", created.ID, "create")
 	http.Redirect(w, r, "/admin/templates", http.StatusSeeOther)
 }
 
@@ -482,6 +499,9 @@ func (a *Admin) TemplateUpdate(w http.ResponseWriter, r *http.Request) {
 	item.HTMLContent = htmlContent
 	if err := a.templateStore.Update(item); err != nil {
 		slog.Error("update template failed", "error", err)
+	} else {
+		// Template content changed — invalidate L1 (compiled) and L2 (rendered pages).
+		a.invalidateTemplateCache(r.Context(), item.ID, "update")
 	}
 
 	http.Redirect(w, r, "/admin/templates", http.StatusSeeOther)
@@ -498,6 +518,9 @@ func (a *Admin) TemplateActivate(w http.ResponseWriter, r *http.Request) {
 
 	if err := a.templateStore.Activate(id); err != nil {
 		slog.Error("activate template failed", "error", err)
+	} else {
+		// Activation changes which template renders for a type — clear everything.
+		a.invalidateAllTemplateCache(r.Context(), id, "update")
 	}
 
 	http.Redirect(w, r, "/admin/templates", http.StatusSeeOther)
@@ -514,6 +537,8 @@ func (a *Admin) TemplateDelete(w http.ResponseWriter, r *http.Request) {
 
 	if err := a.templateStore.Delete(id); err != nil {
 		slog.Error("delete template failed", "error", err)
+	} else {
+		a.invalidateTemplateCache(r.Context(), id, "delete")
 	}
 
 	http.Redirect(w, r, "/admin/templates", http.StatusSeeOther)
@@ -591,6 +616,33 @@ func (a *Admin) UserResetTwoFA(w http.ResponseWriter, r *http.Request) {
 
 	slog.Info("2fa reset by admin", "admin", sess.Email, "target_user", targetID)
 	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+}
+
+// --- Cache invalidation helpers ---
+
+// invalidateContentCache purges the L2 page cache for a content item and
+// logs the event. Always invalidates the homepage too since post listings
+// or the "home" page might have changed.
+func (a *Admin) invalidateContentCache(ctx context.Context, contentID uuid.UUID, contentSlug, action string) {
+	a.pageCache.InvalidatePage(ctx, cache.SlugKey(contentSlug))
+	a.pageCache.InvalidateHomepage(ctx)
+	a.cacheLog.Log("content", contentID, action)
+}
+
+// invalidateTemplateCache purges both L1 (compiled template) and L2 (all
+// rendered pages) caches, since any template change can affect any page.
+func (a *Admin) invalidateTemplateCache(ctx context.Context, templateID uuid.UUID, action string) {
+	a.engine.InvalidateTemplate(templateID.String())
+	a.pageCache.InvalidateAll(ctx)
+	a.cacheLog.Log("template", templateID, action)
+}
+
+// invalidateAllTemplateCache clears the entire L1 cache and all L2 pages.
+// Used for template activation which changes the active template for a type.
+func (a *Admin) invalidateAllTemplateCache(ctx context.Context, templateID uuid.UUID, action string) {
+	a.engine.InvalidateAllTemplates()
+	a.pageCache.InvalidateAll(ctx)
+	a.cacheLog.Log("template", templateID, action)
 }
 
 // SettingsPage renders the settings page.

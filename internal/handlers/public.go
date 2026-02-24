@@ -7,23 +7,27 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"smartpress/internal/cache"
 	"smartpress/internal/engine"
 	"smartpress/internal/models"
 	"smartpress/internal/store"
 )
 
 // Public groups handlers for the public-facing site rendered by the
-// dynamic template engine.
+// dynamic template engine. It checks the L2 Valkey page cache before
+// invoking the template engine, and stores rendered results on miss.
 type Public struct {
 	engine       *engine.Engine
 	contentStore *store.ContentStore
+	pageCache    *cache.PageCache
 }
 
 // NewPublic creates a new Public handler group.
-func NewPublic(eng *engine.Engine, contentStore *store.ContentStore) *Public {
+func NewPublic(eng *engine.Engine, contentStore *store.ContentStore, pageCache *cache.PageCache) *Public {
 	return &Public{
 		engine:       eng,
 		contentStore: contentStore,
+		pageCache:    pageCache,
 	}
 }
 
@@ -31,6 +35,15 @@ func NewPublic(eng *engine.Engine, contentStore *store.ContentStore) *Public {
 // it renders a blog-style post listing. Otherwise, it looks for a page with
 // slug "home" or falls back to a simple default.
 func (p *Public) Homepage(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Check L2 cache first.
+	if html, ok := p.pageCache.Get(ctx, cache.HomepageKey()); ok {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(html)
+		return
+	}
+
 	// Try to render a blog-style homepage with the article_loop template.
 	posts, err := p.contentStore.ListPublishedByType(models.ContentTypePost)
 	if err != nil {
@@ -40,6 +53,7 @@ func (p *Public) Homepage(w http.ResponseWriter, r *http.Request) {
 	if len(posts) > 0 {
 		html, err := p.engine.RenderPostList(posts)
 		if err == nil {
+			p.pageCache.Set(ctx, cache.HomepageKey(), html)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.Write(html)
 			return
@@ -52,6 +66,7 @@ func (p *Public) Homepage(w http.ResponseWriter, r *http.Request) {
 	if err == nil && home != nil {
 		html, err := p.engine.RenderPage(home)
 		if err == nil {
+			p.pageCache.Set(ctx, cache.HomepageKey(), html)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.Write(html)
 			return
@@ -59,7 +74,7 @@ func (p *Public) Homepage(w http.ResponseWriter, r *http.Request) {
 		slog.Warn("homepage render failed", "error", err)
 	}
 
-	// Default fallback when no templates or content exist yet.
+	// Default fallback when no templates or content exist yet (not cached).
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write([]byte(`<!DOCTYPE html>
 <html><head><title>SmartPress</title>
@@ -74,7 +89,15 @@ func (p *Public) Homepage(w http.ResponseWriter, r *http.Request) {
 
 // Page renders a public page or post by its slug using the template engine.
 func (p *Public) Page(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	slugParam := chi.URLParam(r, "slug")
+
+	// Check L2 cache first.
+	if html, ok := p.pageCache.Get(ctx, cache.SlugKey(slugParam)); ok {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(html)
+		return
+	}
 
 	content, err := p.contentStore.FindBySlug(slugParam)
 	if err != nil {
@@ -91,7 +114,7 @@ func (p *Public) Page(w http.ResponseWriter, r *http.Request) {
 	html, err := p.engine.RenderPage(content)
 	if err != nil {
 		slog.Error("render page failed", "error", err, "slug", slugParam)
-		// Fall back to raw content if template engine fails.
+		// Fall back to raw content if template engine fails (not cached).
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, `<!DOCTYPE html><html><head><title>%s</title>
 <script src="https://cdn.tailwindcss.com"></script></head>
@@ -99,6 +122,9 @@ func (p *Public) Page(w http.ResponseWriter, r *http.Request) {
 <div>%s</div></body></html>`, content.Title, content.Title, content.Body)
 		return
 	}
+
+	// Store in L2 cache.
+	p.pageCache.Set(ctx, cache.SlugKey(slugParam), html)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write(html)

@@ -86,9 +86,13 @@ func main() {
 	userStore := store.NewUserStore(db)
 	contentStore := store.NewContentStore(db)
 	templateStore := store.NewTemplateStore(db)
+	cacheLogStore := store.NewCacheLogStore(db)
 
 	// Initialize the dynamic template engine for public page rendering.
 	eng := engine.New(templateStore)
+
+	// Initialize the L2 page cache (full-page HTML in Valkey).
+	pageCache := cache.NewPageCache(valkeyClient, cache.DefaultPageTTL)
 
 	// Build AI provider config for the admin settings page.
 	aiCfg := &handlers.AIConfig{
@@ -102,9 +106,9 @@ func main() {
 	}
 
 	// Create handler groups with their dependencies.
-	adminHandlers := handlers.NewAdmin(renderer, sessionStore, contentStore, userStore, templateStore, eng, aiCfg)
+	adminHandlers := handlers.NewAdmin(renderer, sessionStore, contentStore, userStore, templateStore, eng, pageCache, cacheLogStore, aiCfg)
 	authHandlers := handlers.NewAuth(renderer, sessionStore, userStore)
-	publicHandlers := handlers.NewPublic(eng, contentStore)
+	publicHandlers := handlers.NewPublic(eng, contentStore, pageCache)
 
 	// Set up the Chi router with all middleware and routes.
 	r := router.New(sessionStore, adminHandlers, authHandlers, publicHandlers)

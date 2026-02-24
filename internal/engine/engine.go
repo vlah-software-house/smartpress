@@ -48,14 +48,32 @@ type ListData struct {
 	Year     int
 }
 
-// Engine compiles and renders templates from the database.
+// Engine compiles and renders templates from the database. It maintains
+// an in-memory cache (L1) of compiled Go templates keyed by ID+version,
+// so repeated renders skip the expensive template.Parse step.
 type Engine struct {
 	templateStore *store.TemplateStore
+	cache         *templateCache
 }
 
-// New creates a new template rendering engine.
+// New creates a new template rendering engine with an empty L1 cache.
 func New(templateStore *store.TemplateStore) *Engine {
-	return &Engine{templateStore: templateStore}
+	return &Engine{
+		templateStore: templateStore,
+		cache:         newTemplateCache(),
+	}
+}
+
+// InvalidateTemplate removes a specific template from the L1 cache.
+// Called by admin handlers after template update or delete.
+func (e *Engine) InvalidateTemplate(id string) {
+	e.cache.invalidate(id)
+}
+
+// InvalidateAllTemplates clears the entire L1 cache. Called after
+// template activation since it changes which template serves each type.
+func (e *Engine) InvalidateAllTemplates() {
+	e.cache.invalidateAll()
 }
 
 // RenderPage renders a content item using the active page template,
@@ -107,8 +125,8 @@ func (e *Engine) RenderPage(content *models.Content) ([]byte, error) {
 		data.MetaKeywords = *content.MetaKeywords
 	}
 
-	// Compile and execute the page template.
-	return e.compileAndRender(pageTmpl.HTMLContent, data)
+	// Compile and execute the page template (L1 cached by ID+version).
+	return e.compileAndRender(pageTmpl.ID.String(), pageTmpl.Version, pageTmpl.HTMLContent, data)
 }
 
 // RenderPostList renders the article_loop template with a list of posts.
@@ -154,7 +172,7 @@ func (e *Engine) RenderPostList(posts []models.Content) ([]byte, error) {
 		Year:     time.Now().Year(),
 	}
 
-	return e.compileAndRender(loopTmpl.HTMLContent, data)
+	return e.compileAndRender(loopTmpl.ID.String(), loopTmpl.Version, loopTmpl.HTMLContent, data)
 }
 
 // ValidateTemplate attempts to compile a template string and returns an
@@ -168,9 +186,10 @@ func (e *Engine) ValidateTemplate(htmlContent string) error {
 }
 
 // ValidateAndRender compiles a template string and renders it with the
-// given data. Used for live preview in the admin panel.
+// given data. Used for live preview in the admin panel. Not cached since
+// preview content is ephemeral.
 func (e *Engine) ValidateAndRender(htmlContent string, data any) ([]byte, error) {
-	return e.compileAndRender(htmlContent, data)
+	return e.compileAndRender("", 0, htmlContent, data)
 }
 
 // renderFragment loads and renders a template fragment (header or footer).
@@ -180,7 +199,7 @@ func (e *Engine) renderFragment(tmplType models.TemplateType, data any) (string,
 		return "", fmt.Errorf("no active %s template", tmplType)
 	}
 
-	result, err := e.compileAndRender(tmpl.HTMLContent, data)
+	result, err := e.compileAndRender(tmpl.ID.String(), tmpl.Version, tmpl.HTMLContent, data)
 	if err != nil {
 		return "", err
 	}
@@ -188,15 +207,31 @@ func (e *Engine) renderFragment(tmplType models.TemplateType, data any) (string,
 	return string(result), nil
 }
 
-// compileAndRender compiles a template string and executes it with the given data.
-func (e *Engine) compileAndRender(tmplContent string, data any) ([]byte, error) {
-	tmpl, err := template.New("page").Parse(tmplContent)
-	if err != nil {
-		return nil, fmt.Errorf("compile template: %w", err)
+// compileAndRender compiles a template string and executes it with the
+// given data. If id and version are provided (non-empty id), the compiled
+// template is cached in L1 to avoid re-parsing on subsequent requests.
+func (e *Engine) compileAndRender(id string, version int, tmplContent string, data any) ([]byte, error) {
+	var compiled *template.Template
+
+	// Try L1 cache first (skip for ad-hoc renders like preview).
+	if id != "" {
+		compiled = e.cache.get(id, version)
+	}
+
+	if compiled == nil {
+		var err error
+		compiled, err = template.New("page").Parse(tmplContent)
+		if err != nil {
+			return nil, fmt.Errorf("compile template: %w", err)
+		}
+		// Store in L1 cache for next time.
+		if id != "" {
+			e.cache.put(id, version, compiled)
+		}
 	}
 
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
+	if err := compiled.Execute(&buf, data); err != nil {
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
 
