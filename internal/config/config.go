@@ -26,10 +26,26 @@ type Config struct {
 	ValkeyPort     string
 	ValkeyPassword string
 
-	// AI provider settings
-	AIProvider string // "openai", "gemini", "claude"
-	AIAPIKey   string
-	AIModel    string
+	// AI providers — keys for all supported providers; AIProvider selects
+	// the default on startup. Switchable at runtime from admin Settings.
+	AIProvider string // Default active: "openai", "gemini", "claude", "mistral"
+
+	// Per-provider credentials
+	OpenAIKey     string
+	OpenAIModel   string
+	OpenAIBaseURL string
+
+	GeminiKey     string
+	GeminiModel   string
+	GeminiBaseURL string
+
+	ClaudeKey     string
+	ClaudeModel   string
+	ClaudeBaseURL string
+
+	MistralKey     string
+	MistralModel   string
+	MistralBaseURL string
 }
 
 // Load reads configuration from environment variables, applying defaults
@@ -51,9 +67,23 @@ func Load() (*Config, error) {
 		ValkeyPort:     envOrDefault("VALKEY_PORT", "6379"),
 		ValkeyPassword: os.Getenv("VALKEY_PASSWORD"),
 
-		AIProvider: os.Getenv("AI_PROVIDER"),
-		AIAPIKey:   os.Getenv("AI_API_KEY"),
-		AIModel:    os.Getenv("AI_MODEL"),
+		AIProvider: envOrDefault("AI_PROVIDER", "gemini"),
+
+		OpenAIKey:     os.Getenv("OPENAI_API_KEY"),
+		OpenAIModel:   envOrDefault("OPENAI_MODEL", "gpt-4o"),
+		OpenAIBaseURL: envOrDefault("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+
+		GeminiKey:     os.Getenv("GEMINI_API_KEY"),
+		GeminiModel:   envOrDefault("GEMINI_MODEL", "gemini-3.1-pro-preview"),
+		GeminiBaseURL: envOrDefault("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com"),
+
+		ClaudeKey:     os.Getenv("CLAUDE_API_KEY"),
+		ClaudeModel:   envOrDefault("CLAUDE_MODEL", "claude-sonnet-4-6"),
+		ClaudeBaseURL: envOrDefault("CLAUDE_BASE_URL", "https://api.anthropic.com"),
+
+		MistralKey:     os.Getenv("MISTRAL_API_KEY"),
+		MistralModel:   envOrDefault("MISTRAL_MODEL", "mistral-large-latest"),
+		MistralBaseURL: envOrDefault("MISTRAL_BASE_URL", "https://api.mistral.ai"),
 	}
 
 	if cfg.Env == "production" {

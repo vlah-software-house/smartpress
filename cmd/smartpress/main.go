@@ -90,8 +90,19 @@ func main() {
 	// Initialize the dynamic template engine for public page rendering.
 	eng := engine.New(templateStore)
 
+	// Build AI provider config for the admin settings page.
+	aiCfg := &handlers.AIConfig{
+		ActiveProvider: cfg.AIProvider,
+		Providers: []handlers.AIProviderInfo{
+			{Name: "openai", Label: "OpenAI", HasKey: cfg.OpenAIKey != "", Active: cfg.AIProvider == "openai", Model: cfg.OpenAIModel, KeyEnvVar: "OPENAI_API_KEY"},
+			{Name: "gemini", Label: "Google Gemini", HasKey: cfg.GeminiKey != "", Active: cfg.AIProvider == "gemini", Model: cfg.GeminiModel, KeyEnvVar: "GEMINI_API_KEY"},
+			{Name: "claude", Label: "Anthropic Claude", HasKey: cfg.ClaudeKey != "", Active: cfg.AIProvider == "claude", Model: cfg.ClaudeModel, KeyEnvVar: "CLAUDE_API_KEY"},
+			{Name: "mistral", Label: "Mistral", HasKey: cfg.MistralKey != "", Active: cfg.AIProvider == "mistral", Model: cfg.MistralModel, KeyEnvVar: "MISTRAL_API_KEY"},
+		},
+	}
+
 	// Create handler groups with their dependencies.
-	adminHandlers := handlers.NewAdmin(renderer, sessionStore, contentStore, userStore, templateStore, eng)
+	adminHandlers := handlers.NewAdmin(renderer, sessionStore, contentStore, userStore, templateStore, eng, aiCfg)
 	authHandlers := handlers.NewAuth(renderer, sessionStore, userStore)
 	publicHandlers := handlers.NewPublic(eng, contentStore)
 

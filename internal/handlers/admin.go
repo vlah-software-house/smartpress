@@ -20,6 +20,24 @@ import (
 	"smartpress/internal/store"
 )
 
+// AIProviderInfo holds display information about a configured AI provider.
+// Used by the Settings page to show which providers are available.
+type AIProviderInfo struct {
+	Name      string // "openai", "gemini", "claude", "mistral"
+	Label     string // Human-friendly label
+	HasKey    bool   // Whether an API key is configured
+	Active    bool   // Whether this is the currently active provider
+	Model     string // Configured model name
+	KeyEnvVar string // Environment variable name for the key
+}
+
+// AIConfig holds the AI provider configuration visible to admin handlers.
+// Intentionally excludes actual API keys — only exposes what the UI needs.
+type AIConfig struct {
+	ActiveProvider string
+	Providers      []AIProviderInfo
+}
+
 // Admin groups all admin panel HTTP handlers and their dependencies.
 type Admin struct {
 	renderer      *render.Renderer
@@ -28,10 +46,11 @@ type Admin struct {
 	userStore     *store.UserStore
 	templateStore *store.TemplateStore
 	engine        *engine.Engine
+	aiConfig      *AIConfig
 }
 
 // NewAdmin creates a new Admin handler group with the given dependencies.
-func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, eng *engine.Engine) *Admin {
+func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, eng *engine.Engine, aiCfg *AIConfig) *Admin {
 	return &Admin{
 		renderer:      renderer,
 		sessions:      sessions,
@@ -39,6 +58,7 @@ func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *
 		userStore:     userStore,
 		templateStore: templateStore,
 		engine:        eng,
+		aiConfig:      aiCfg,
 	}
 }
 
@@ -578,5 +598,8 @@ func (a *Admin) SettingsPage(w http.ResponseWriter, r *http.Request) {
 	a.renderer.Page(w, r, "settings", &render.PageData{
 		Title:   "Settings",
 		Section: "settings",
+		Data: map[string]any{
+			"Providers": a.aiConfig.Providers,
+		},
 	})
 }

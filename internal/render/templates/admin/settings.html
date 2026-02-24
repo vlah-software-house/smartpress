@@ -11,40 +11,33 @@
         <!-- AI Provider settings -->
         <div class="p-6">
             <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">AI Provider</h3>
-            <p class="text-sm text-gray-500 mb-4">Configure which AI service to use for content generation and template design.</p>
+            <p class="text-sm text-gray-500 mb-4">
+                Select which AI service to use for content generation and template design.
+                API keys are loaded from environment variables. Only providers with valid keys can be activated.
+            </p>
 
-            <form class="space-y-4">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label for="ai_provider" class="block text-sm font-medium text-gray-700">Provider</label>
-                        <select id="ai_provider" name="ai_provider"
-                                class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
-                            <option value="">Select a provider...</option>
-                            <option value="openai">OpenAI (ChatGPT)</option>
-                            <option value="gemini">Google Gemini</option>
-                            <option value="claude">Anthropic Claude</option>
-                        </select>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {{range .Data.Providers}}
+                <div class="rounded-lg border p-4 {{if .Active}}border-indigo-300 bg-indigo-50{{else if .HasKey}}border-gray-200 bg-white{{else}}border-gray-200 bg-gray-50{{end}}">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-medium text-gray-900">{{.Label}}</span>
+                        {{if .Active}}
+                        <span class="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">Active</span>
+                        {{else if .HasKey}}
+                        <span class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Key configured</span>
+                        {{else}}
+                        <span class="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">No key</span>
+                        {{end}}
                     </div>
-                    <div>
-                        <label for="ai_model" class="block text-sm font-medium text-gray-700">Model</label>
-                        <input type="text" id="ai_model" name="ai_model"
-                               class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-                               placeholder="e.g., gpt-4o, gemini-pro, claude-sonnet-4-6">
-                    </div>
+                    <p class="text-xs text-gray-500 mb-1">Model: <code class="text-gray-700">{{.Model}}</code></p>
+                    <p class="text-xs text-gray-400">Key var: <code>{{.KeyEnvVar}}</code></p>
                 </div>
+                {{end}}
+            </div>
 
-                <div>
-                    <label for="ai_api_key" class="block text-sm font-medium text-gray-700">API Key</label>
-                    <input type="password" id="ai_api_key" name="ai_api_key"
-                           class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-                           placeholder="sk-...">
-                </div>
-
-                <button type="submit" disabled
-                        class="inline-flex items-center rounded-md bg-gray-400 px-4 py-2 text-sm font-medium text-white cursor-not-allowed">
-                    Save Settings (coming soon)
-                </button>
-            </form>
+            <p class="mt-4 text-xs text-gray-400">
+                Runtime provider switching will be available once AI integration is complete (Phase 3).
+            </p>
         </div>
 
         <!-- Site settings -->

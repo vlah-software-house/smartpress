@@ -52,10 +52,34 @@ Follow this exact sequence for every new task, feature, fix, or patch:
   * Deploy to the testing environment using Kubernetes manifests.  
   * Keep manifests updated, modular, and customizable for multiple environments (e.g., using Kustomize or Helm if appropriate, or structured manifest directories).  
 * **Seeding Data:** Write and maintain database seeding scripts/manifests based on the application specifications to ensure a populated testing environment.  
-* **Secrets Management:** Use a .secrets file for all environment variables provided by the user for prepared services in the testing environment. **Always ask the user for any missing variables** before attempting to run services. Do not hardcode secrets.
-* **Database Management** Use the postgres user password to check existance of defined database name, and user that must be it's owner.
+* **Secrets Management:** Two environment files exist, both gitignored:
+  * **`.secrets`** — Testing/staging environment credentials for Kubernetes deployment and human QA. Contains DB credentials for the remote testing cluster, Valkey credentials, testing URL, and AI API keys. **Always ask the user for any missing variables** before deploying. Do not hardcode secrets.
+  * **`.env`** — Local development configuration. The AI agent may freely create and manage this file with whatever credentials are needed for local Docker services (PostgreSQL, Valkey). AI provider keys may be copied from `.secrets` for local use since they are service-level keys, not environment-specific.
+* **Database Management:** Use the postgres user password to check existence of defined database name, and user that must be its owner.
 
-## **6\. AI Tool Coordination & Delegation**
+## **6\. AI Provider Integration**
+
+SmartPress supports **four AI providers** for content generation and template design. All providers follow a common interface and can be switched at runtime from the admin Settings page.
+
+### Supported Providers
+
+| Provider | Key env var | Default model | Base URL env var (optional) |
+|---|---|---|---|
+| OpenAI | `OPENAI_API_KEY` | `gpt-4o` | `OPENAI_BASE_URL` |
+| Google Gemini | `GEMINI_API_KEY` | `gemini-3.1-pro-preview` | `GEMINI_BASE_URL` |
+| Anthropic Claude | `CLAUDE_API_KEY` | `claude-sonnet-4-6` | `CLAUDE_BASE_URL` |
+| Mistral | `MISTRAL_API_KEY` | `mistral-large-latest` | `MISTRAL_BASE_URL` |
+
+### Architecture
+
+* **`AI_PROVIDER`** env var sets the default active provider on startup.
+* Each provider has its own `*_API_KEY`, `*_MODEL`, and optional `*_BASE_URL` variables.
+* Base URLs default to the official API endpoints — only override for proxies or self-hosted instances.
+* Runtime switching: the active provider and model are stored in the database (settings table) and override the env var default. The admin Settings page lets users switch without restarting the server.
+* Only providers with a valid API key configured are selectable in the UI.
+* Code architecture: an `ai.Provider` interface with `Generate(prompt string) (string, error)` — each provider implements it. A registry/factory selects the provider by name.
+
+## **7\. AI Tool Coordination & Delegation**
 
 * **Task Management:** Maintain a list of ongoing, pending, and completed tasks inside the work/tasks/ directory.  
 * **Grouped Files:** Group tasks logically into files (e.g., work/tasks/frontend.md, work/tasks/database.md).  
