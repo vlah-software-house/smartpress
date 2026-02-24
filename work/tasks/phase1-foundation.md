@@ -20,13 +20,15 @@
 - [x] Wire database connect → migrate → seed into main.go
 
 ## Step 3: Go Server & Router
-- [ ] Integrate Chi router
-- [ ] Middleware: structured logging
-- [ ] Middleware: panic recovery
-- [ ] Middleware: CSRF protection
-- [ ] Middleware: session/auth
-- [ ] Admin route group (`/admin/*`)
-- [ ] Public route group (`/*`)
+- [x] Integrate Chi router (v5.2.5)
+- [x] Middleware: structured logging (slog)
+- [x] Middleware: panic recovery with stack trace
+- [x] Middleware: CSRF protection (double-submit cookie, HTMX-compatible)
+- [x] Middleware: session/auth (LoadSession, RequireAuth, Require2FA, RequireAdmin)
+- [x] Session store (Valkey-backed, 24h TTL, secure cookies)
+- [x] Admin route group (`/admin/*`) with auth + 2FA middleware
+- [x] Public route group (`/*`)
+- [x] Valkey client connection (`internal/cache/valkey.go`)
 
 ## Step 4: Admin UI Layout
 - [ ] Admin HTML shell (sidebar, top bar, main content area)

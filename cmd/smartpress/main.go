@@ -12,8 +12,11 @@ import (
 	"syscall"
 	"time"
 
+	"smartpress/internal/cache"
 	"smartpress/internal/config"
 	"smartpress/internal/database"
+	"smartpress/internal/router"
+	"smartpress/internal/session"
 )
 
 func main() {
@@ -57,21 +60,24 @@ func main() {
 		}
 	}
 
-	// TODO: Initialize Valkey cache connection
-	// TODO: Set up Chi router with middleware and routes
+	// Connect to Valkey (Redis-compatible cache + session store).
+	valkeyClient, err := cache.ConnectValkey(cfg.ValkeyHost, cfg.ValkeyPort, cfg.ValkeyPassword)
+	if err != nil {
+		slog.Error("failed to connect to valkey", "error", err)
+		os.Exit(1)
+	}
+	defer valkeyClient.Close()
 
-	// Minimal health-check handler until the router is wired up.
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
-	})
+	// Initialize session store backed by Valkey.
+	sessionStore := session.NewStore(valkeyClient)
+
+	// Set up the Chi router with all middleware and routes.
+	r := router.New(sessionStore)
 
 	// Create the HTTP server with sensible timeouts.
 	srv := &http.Server{
 		Addr:         cfg.Addr(),
-		Handler:      mux,
+		Handler:      r,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
