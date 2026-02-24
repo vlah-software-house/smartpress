@@ -1,0 +1,129 @@
+// Package main is the entry point for the SmartPress CMS server.
+// It loads configuration, connects to services, sets up routing, and starts
+// the HTTP server with graceful shutdown support.
+package main
+
+import (
+	"context"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"smartpress/internal/cache"
+	"smartpress/internal/config"
+	"smartpress/internal/database"
+	"smartpress/internal/handlers"
+	"smartpress/internal/render"
+	"smartpress/internal/router"
+	"smartpress/internal/session"
+	"smartpress/internal/store"
+)
+
+func main() {
+	// Structured logger — outputs JSON in production, text in development.
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}))
+	slog.SetDefault(logger)
+
+	// Load configuration from environment variables.
+	cfg, err := config.Load()
+	if err != nil {
+		slog.Error("failed to load configuration", "error", err)
+		os.Exit(1)
+	}
+
+	slog.Info("configuration loaded",
+		"env", cfg.Env,
+		"addr", cfg.Addr(),
+	)
+
+	// Connect to PostgreSQL.
+	db, err := database.Connect(cfg.DSN())
+	if err != nil {
+		slog.Error("failed to connect to database", "error", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	// Run pending migrations.
+	if err := database.Migrate(db); err != nil {
+		slog.Error("failed to run migrations", "error", err)
+		os.Exit(1)
+	}
+
+	// Seed development data (no-op if data already exists).
+	if cfg.IsDev() {
+		if err := database.Seed(db); err != nil {
+			slog.Error("failed to seed database", "error", err)
+			os.Exit(1)
+		}
+	}
+
+	// Connect to Valkey (Redis-compatible cache + session store).
+	valkeyClient, err := cache.ConnectValkey(cfg.ValkeyHost, cfg.ValkeyPort, cfg.ValkeyPassword)
+	if err != nil {
+		slog.Error("failed to connect to valkey", "error", err)
+		os.Exit(1)
+	}
+	defer valkeyClient.Close()
+
+	// Initialize session store backed by Valkey.
+	sessionStore := session.NewStore(valkeyClient)
+
+	// Initialize the HTML template renderer for admin pages.
+	renderer, err := render.New()
+	if err != nil {
+		slog.Error("failed to initialize template renderer", "error", err)
+		os.Exit(1)
+	}
+
+	// Initialize data stores.
+	userStore := store.NewUserStore(db)
+	contentStore := store.NewContentStore(db)
+
+	// Create handler groups with their dependencies.
+	adminHandlers := handlers.NewAdmin(renderer, sessionStore, contentStore, userStore)
+	authHandlers := handlers.NewAuth(renderer, sessionStore, userStore)
+
+	// Set up the Chi router with all middleware and routes.
+	r := router.New(sessionStore, adminHandlers, authHandlers)
+
+	// Create the HTTP server with sensible timeouts.
+	srv := &http.Server{
+		Addr:         cfg.Addr(),
+		Handler:      r,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	// Start the server in a goroutine so we can listen for shutdown signals.
+	go func() {
+		slog.Info("server starting", "addr", cfg.Addr())
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("server failed to start", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	// Graceful shutdown: wait for SIGINT or SIGTERM, then drain connections.
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	sig := <-quit
+	slog.Info("shutdown signal received", "signal", sig)
+
+	// Give active requests up to 30 seconds to complete.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		slog.Error("server forced to shutdown", "error", err)
+		os.Exit(1)
+	}
+
+	slog.Info("server stopped gracefully")
+}

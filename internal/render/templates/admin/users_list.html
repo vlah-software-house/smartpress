@@ -1,0 +1,78 @@
+{{define "title"}}Users{{end}}
+
+{{define "content"}}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-xl font-semibold text-gray-900">Users</h2>
+            <p class="mt-1 text-sm text-gray-500">Manage user accounts and roles.</p>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">2FA</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {{if and .Data .Data.Users}}
+                {{range .Data.Users}}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4">
+                        <div class="flex items-center">
+                            <div class="h-8 w-8 rounded-full bg-indigo-500 flex items-center justify-center">
+                                <span class="text-sm font-medium text-white">{{slice .DisplayName 0 1}}</span>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-gray-900">{{.DisplayName}}</p>
+                                <p class="text-xs text-gray-500">{{.Email}}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        {{if eq (printf "%s" .Role) "admin"}}
+                        <span class="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">admin</span>
+                        {{else if eq (printf "%s" .Role) "editor"}}
+                        <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">editor</span>
+                        {{else}}
+                        <span class="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800">author</span>
+                        {{end}}
+                    </td>
+                    <td class="px-6 py-4">
+                        {{if .TOTPEnabled}}
+                        <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">Active</span>
+                        {{else}}
+                        <span class="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">Pending setup</span>
+                        {{end}}
+                    </td>
+                    <td class="px-6 py-4 text-right text-sm">
+                        {{if .TOTPEnabled}}
+                        <form method="POST" action="/admin/users/{{.ID}}/reset-2fa" class="inline"
+                              hx-post="/admin/users/{{.ID}}/reset-2fa"
+                              hx-target="#main-content"
+                              hx-confirm="This will force the user to set up 2FA again on their next login. Continue?">
+                            <button type="submit" class="text-red-600 hover:text-red-800">Reset 2FA</button>
+                        </form>
+                        {{else}}
+                        <span class="text-gray-400">—</span>
+                        {{end}}
+                    </td>
+                </tr>
+                {{end}}
+                {{else}}
+                <tr>
+                    <td colspan="4" class="px-6 py-12 text-center text-sm text-gray-500">
+                        No users found.
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>
+{{end}}

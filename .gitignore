@@ -1,0 +1,43 @@
+# Secrets — never commit
+.secrets
+.env
+
+# Go build artifacts
+/smartpress
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test artifacts
+*.test
+*.out
+coverage.html
+coverage.txt
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes (local dev data)
+.docker-data/
+
+# Node modules (Tailwind build, Playwright)
+node_modules/
+
+# Playwright
+test-results/
+playwright-report/
+
+# Temporary files
+*.tmp
+*.log

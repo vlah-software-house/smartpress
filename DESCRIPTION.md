@@ -38,6 +38,9 @@
 
 ## **4\. AI Integration (Key Strengths)**
 
+* Admins can manage AI API Keys for Gemini, ChatGPT and Claude.
+* Give option to the user to select which AI provider, respecting the models defined in environment.
+
 ### **A. Content Assistance (The Editor's Copilot)**
 
 * Autocomplete features.  

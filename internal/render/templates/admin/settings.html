@@ -1,0 +1,57 @@
+{{define "title"}}Settings{{end}}
+
+{{define "content"}}
+<div class="space-y-6">
+    <div>
+        <h2 class="text-xl font-semibold text-gray-900">Settings</h2>
+        <p class="mt-1 text-sm text-gray-500">Configure your SmartPress installation.</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-200">
+        <!-- AI Provider settings -->
+        <div class="p-6">
+            <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">AI Provider</h3>
+            <p class="text-sm text-gray-500 mb-4">Configure which AI service to use for content generation and template design.</p>
+
+            <form class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="ai_provider" class="block text-sm font-medium text-gray-700">Provider</label>
+                        <select id="ai_provider" name="ai_provider"
+                                class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+                            <option value="">Select a provider...</option>
+                            <option value="openai">OpenAI (ChatGPT)</option>
+                            <option value="gemini">Google Gemini</option>
+                            <option value="claude">Anthropic Claude</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="ai_model" class="block text-sm font-medium text-gray-700">Model</label>
+                        <input type="text" id="ai_model" name="ai_model"
+                               class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                               placeholder="e.g., gpt-4o, gemini-pro, claude-sonnet-4-6">
+                    </div>
+                </div>
+
+                <div>
+                    <label for="ai_api_key" class="block text-sm font-medium text-gray-700">API Key</label>
+                    <input type="password" id="ai_api_key" name="ai_api_key"
+                           class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                           placeholder="sk-...">
+                </div>
+
+                <button type="submit" disabled
+                        class="inline-flex items-center rounded-md bg-gray-400 px-4 py-2 text-sm font-medium text-white cursor-not-allowed">
+                    Save Settings (coming soon)
+                </button>
+            </form>
+        </div>
+
+        <!-- Site settings -->
+        <div class="p-6">
+            <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4">Site</h3>
+            <p class="text-sm text-gray-500">General site configuration will go here.</p>
+        </div>
+    </div>
+</div>
+{{end}}
