@@ -127,6 +127,8 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 			// AI Assistant (content editor helpers + template builder)
 			r.Route("/ai", func(r chi.Router) {
 				r.Use(aiLimiter.Middleware)
+				r.Post("/set-provider", admin.AISetProvider)
+				r.Get("/provider-status", admin.AIProviderStatus)
 				r.Post("/generate-content", admin.AIGenerateContent)
 				r.Post("/generate-image", admin.AIGenerateImage)
 				r.Post("/suggest-title", admin.AISuggestTitle)

@@ -18,28 +18,41 @@ type ImageGenerator interface {
 	GenerateImage(ctx context.Context, prompt string) ([]byte, string, error)
 }
 
-// GenerateImage calls the active provider's image generation if supported.
-// Returns an error if the active provider does not implement ImageGenerator.
+// GenerateImage finds the best available image generator and creates an image.
+// It prefers OpenAI (DALL-E) regardless of the active text provider, then
+// falls back to any other provider that implements ImageGenerator.
 func (r *Registry) GenerateImage(ctx context.Context, prompt string) ([]byte, string, error) {
-	p, err := r.Active()
-	if err != nil {
-		return nil, "", err
+	ig := r.findImageGenerator()
+	if ig == nil {
+		return nil, "", fmt.Errorf("ai: no provider supports image generation (OpenAI key required for DALL-E)")
 	}
-
-	ig, ok := p.(ImageGenerator)
-	if !ok {
-		return nil, "", fmt.Errorf("ai: provider %q does not support image generation", p.Name())
-	}
-
 	return ig.GenerateImage(ctx, prompt)
 }
 
-// SupportsImageGeneration returns true if the active provider can generate images.
+// SupportsImageGeneration returns true if any registered provider can generate images.
 func (r *Registry) SupportsImageGeneration() bool {
-	p, err := r.Active()
-	if err != nil {
-		return false
+	return r.findImageGenerator() != nil
+}
+
+// findImageGenerator returns the best available ImageGenerator, preferring
+// OpenAI (DALL-E). Falls back to any other provider that implements the interface.
+func (r *Registry) findImageGenerator() ImageGenerator {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	// Prefer OpenAI for image generation (DALL-E).
+	if p, ok := r.providers["openai"]; ok {
+		if ig, ok := p.(ImageGenerator); ok {
+			return ig
+		}
 	}
-	_, ok := p.(ImageGenerator)
-	return ok
+
+	// Fallback: check all providers.
+	for _, p := range r.providers {
+		if ig, ok := p.(ImageGenerator); ok {
+			return ig
+		}
+	}
+
+	return nil
 }

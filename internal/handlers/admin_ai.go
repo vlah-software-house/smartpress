@@ -101,7 +101,7 @@ func (a *Admin) AIGenerateImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !a.aiRegistry.SupportsImageGeneration() {
-		writeAIError(w, "The active AI provider does not support image generation. Switch to OpenAI in Settings.")
+		writeAIError(w, "Image generation requires an OpenAI API key for DALL-E. Configure OPENAI_API_KEY to enable this feature.")
 		return
 	}
 
@@ -503,6 +503,95 @@ Output ONLY the tags as a comma-separated list on a single line. No other text.`
 	}
 	sb.WriteString(`</div>`)
 	sb.WriteString(`<p class="text-xs text-gray-400 mt-1.5">Click tags to add them to keywords.</p>`)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte(sb.String()))
+}
+
+// --- Provider Switching ---
+
+// AISetProvider switches the active AI provider at runtime.
+// Accepts a "provider" form value and returns an HTML fragment that replaces
+// the provider selector UI to reflect the new active provider.
+func (a *Admin) AISetProvider(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(r.FormValue("provider"))
+	if name == "" {
+		writeAIError(w, "No provider specified.")
+		return
+	}
+
+	if err := a.aiRegistry.SetActive(name); err != nil {
+		slog.Warn("failed to switch AI provider", "provider", name, "error", err)
+		writeAIError(w, fmt.Sprintf("Cannot switch to %q: provider not available (no API key configured).", name))
+		return
+	}
+
+	// Update the cached AIConfig so the UI reflects the change.
+	a.refreshAIConfig(name)
+
+	slog.Info("ai provider switched", "provider", name)
+
+	// If this is an HTMX request from the AI assistant panel, return the
+	// updated provider selector dropdown.
+	source := r.Header.Get("HX-Target")
+	if r.Header.Get("HX-Request") == "true" && source == "ai-provider-select" {
+		a.writeProviderSelector(w, name)
+		return
+	}
+
+	// HTMX request from settings page or non-HTMX: redirect to settings.
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("HX-Redirect", "/admin/settings")
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	http.Redirect(w, r, "/admin/settings", http.StatusSeeOther)
+}
+
+// AIProviderStatus returns the current provider selector fragment.
+// Used by the content form to load the initial state of the provider dropdown.
+func (a *Admin) AIProviderStatus(w http.ResponseWriter, r *http.Request) {
+	a.writeProviderSelector(w, a.aiRegistry.ActiveName())
+}
+
+// refreshAIConfig updates the cached AIConfig after a provider switch.
+func (a *Admin) refreshAIConfig(activeName string) {
+	a.aiConfig.ActiveProvider = activeName
+	for i := range a.aiConfig.Providers {
+		a.aiConfig.Providers[i].Active = a.aiConfig.Providers[i].Name == activeName
+	}
+}
+
+// writeProviderSelector writes an HTML fragment containing the provider
+// dropdown selector with the current active provider highlighted.
+func (a *Admin) writeProviderSelector(w http.ResponseWriter, active string) {
+	var sb strings.Builder
+	sb.WriteString(`<select name="provider" `)
+	sb.WriteString(`hx-post="/admin/ai/set-provider" `)
+	sb.WriteString(`hx-target="#ai-provider-select" `)
+	sb.WriteString(`hx-swap="innerHTML" `)
+	sb.WriteString(`hx-include="[name='csrf_token']" `)
+	sb.WriteString(`class="block w-full rounded-md border border-gray-300 px-2 py-1 text-xs shadow-sm `)
+	sb.WriteString(`focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">`)
+
+	for _, p := range a.aiConfig.Providers {
+		if !p.HasKey {
+			continue
+		}
+		selected := ""
+		if p.Name == active {
+			selected = " selected"
+		}
+		sb.WriteString(fmt.Sprintf(
+			`<option value="%s"%s>%s (%s)</option>`,
+			html.EscapeString(p.Name),
+			selected,
+			html.EscapeString(p.Label),
+			html.EscapeString(p.Model),
+		))
+	}
+	sb.WriteString(`</select>`)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write([]byte(sb.String()))

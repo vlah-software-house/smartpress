@@ -307,6 +307,17 @@
                     </button>
                 </div>
                 <p class="mt-1 text-xs text-gray-500">Use AI to help write and optimize your content.</p>
+
+                <!-- Provider selector -->
+                <div class="mt-3 pt-3 border-t border-gray-100">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Provider</label>
+                    <div id="ai-provider-select"
+                         hx-get="/admin/ai/provider-status"
+                         hx-trigger="load"
+                         hx-swap="innerHTML">
+                        <span class="text-xs text-gray-400">Loading...</span>
+                    </div>
+                </div>
             </div>
 
             <!-- Suggest Titles -->
