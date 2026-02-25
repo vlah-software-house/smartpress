@@ -13,13 +13,24 @@
         </div>
 
         {{if not .Data.NoStorage}}
-        <button @click="showUpload = true"
-                class="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
-            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-            </svg>
-            Upload
-        </button>
+        <div class="flex items-center gap-2">
+            <button @click="regenerateAll()"
+                    :disabled="regenerating"
+                    class="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Regenerate responsive variants for images missing them">
+                <svg class="h-5 w-5" :class="regenerating && 'animate-spin'" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" />
+                </svg>
+                <span x-text="regenerating ? 'Processing...' : 'Regenerate All'"></span>
+            </button>
+            <button @click="showUpload = true"
+                    class="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                </svg>
+                Upload
+            </button>
+        </div>
         {{end}}
     </div>
 
@@ -168,6 +179,14 @@
                     </svg>
                 </button>
                 {{end}}
+                {{if .IsImage}}
+                <button onclick="regenerateVariants('{{.ID}}')"
+                        class="p-2 bg-white rounded-full shadow-lg hover:bg-indigo-50" title="Regenerate variants">
+                    <svg class="h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" />
+                    </svg>
+                </button>
+                {{end}}
                 <button hx-delete="/admin/media/{{.ID}}"
                         hx-target="#media-{{.ID}}"
                         hx-swap="outerHTML"
@@ -202,6 +221,25 @@ function copyToClipboard(text) {
     });
 }
 
+function regenerateVariants(mediaId) {
+    const csrfToken = document.body.getAttribute('hx-headers');
+    const csrf = csrfToken ? JSON.parse(csrfToken)['X-CSRF-Token'] : '';
+
+    fetch('/admin/media/' + mediaId + '/regenerate', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': csrf }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            alert(data.message);
+        } else {
+            alert('Regeneration failed: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(() => alert('Network error during regeneration.'));
+}
+
 function mediaLibrary() {
     return {
         showUpload: false,
@@ -212,6 +250,7 @@ function mediaLibrary() {
         uploading: false,
         uploadProgress: 0,
         uploadError: '',
+        regenerating: false,
 
         handleDrop(event) {
             this.dragOver = false;
@@ -244,6 +283,28 @@ function mediaLibrary() {
             this.uploading = false;
             this.uploadProgress = 0;
             this.uploadError = '';
+        },
+
+        async regenerateAll() {
+            this.regenerating = true;
+            try {
+                const csrfToken = document.body.getAttribute('hx-headers');
+                const csrf = csrfToken ? JSON.parse(csrfToken)['X-CSRF-Token'] : '';
+                const resp = await fetch('/admin/media/regenerate-all', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrf }
+                });
+                const data = await resp.json();
+                if (data.ok) {
+                    alert(data.message);
+                } else {
+                    alert('Failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch {
+                alert('Network error during bulk regeneration.');
+            } finally {
+                this.regenerating = false;
+            }
         },
 
         async upload() {

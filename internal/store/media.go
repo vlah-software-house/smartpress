@@ -112,6 +112,16 @@ func (s *MediaStore) Delete(id uuid.UUID) (*models.Media, error) {
 	return m, nil
 }
 
+// UpdateThumbKey updates the thumbnail S3 key for a media item.
+// Used when regenerating variants to point to the new thumb.
+func (s *MediaStore) UpdateThumbKey(id uuid.UUID, thumbKey *string) error {
+	_, err := s.db.Exec(`UPDATE media SET thumb_s3_key = $1 WHERE id = $2`, thumbKey, id)
+	if err != nil {
+		return fmt.Errorf("update thumb key: %w", err)
+	}
+	return nil
+}
+
 // Count returns the total number of media items.
 func (s *MediaStore) Count() (int, error) {
 	var count int

@@ -116,6 +116,8 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 				r.Post("/", admin.MediaUpload)
 				r.Delete("/{id}", admin.MediaDelete)
 				r.Get("/{id}/url", admin.MediaServe)
+				r.Post("/{id}/regenerate", admin.MediaRegenerateVariants)
+				r.Post("/regenerate-all", admin.MediaRegenerateBulk)
 			})
 
 			// Content Revisions

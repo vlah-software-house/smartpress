@@ -57,6 +57,7 @@ type Admin struct {
 	userStore     *store.UserStore
 	templateStore *store.TemplateStore
 	mediaStore    *store.MediaStore
+	variantStore  *store.VariantStore
 	revisionStore *store.RevisionStore
 	storageClient *storage.Client
 	engine        *engine.Engine
@@ -67,8 +68,8 @@ type Admin struct {
 }
 
 // NewAdmin creates a new Admin handler group with the given dependencies.
-// storageClient and mediaStore may be nil if S3 is not configured.
-func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, mediaStore *store.MediaStore, revisionStore *store.RevisionStore, storageClient *storage.Client, eng *engine.Engine, pageCache *cache.PageCache, cacheLog *store.CacheLogStore, aiRegistry *ai.Registry, aiCfg *AIConfig) *Admin {
+// storageClient, mediaStore, and variantStore may be nil if S3 is not configured.
+func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, mediaStore *store.MediaStore, variantStore *store.VariantStore, revisionStore *store.RevisionStore, storageClient *storage.Client, eng *engine.Engine, pageCache *cache.PageCache, cacheLog *store.CacheLogStore, aiRegistry *ai.Registry, aiCfg *AIConfig) *Admin {
 	return &Admin{
 		renderer:      renderer,
 		sessions:      sessions,
@@ -76,6 +77,7 @@ func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *
 		userStore:     userStore,
 		templateStore: templateStore,
 		mediaStore:    mediaStore,
+		variantStore:  variantStore,
 		revisionStore: revisionStore,
 		storageClient: storageClient,
 		engine:        eng,

@@ -22,6 +22,7 @@ import (
 	"yaaicms/internal/database"
 	"yaaicms/internal/engine"
 	"yaaicms/internal/handlers"
+	"yaaicms/internal/imaging"
 	"yaaicms/internal/render"
 	"yaaicms/internal/router"
 	"yaaicms/internal/session"
@@ -99,6 +100,7 @@ func main() {
 	templateStore := store.NewTemplateStore(db)
 	cacheLogStore := store.NewCacheLogStore(db)
 	mediaStore := store.NewMediaStore(db)
+	variantStore := store.NewVariantStore(db)
 	revisionStore := store.NewRevisionStore(db)
 
 	// Connect to S3-compatible object storage (optional — app works without it).
@@ -122,6 +124,11 @@ func main() {
 	} else {
 		slog.Warn("s3 storage not configured — media uploads disabled")
 	}
+
+	// Initialize libvips for responsive image variant generation.
+	// Concurrency 0 lets libvips auto-detect based on CPU cores.
+	imaging.Startup(0)
+	defer imaging.Shutdown()
 
 	// Initialize the dynamic template engine for public page rendering.
 	eng := engine.New(templateStore)
@@ -154,9 +161,9 @@ func main() {
 	}
 
 	// Create handler groups with their dependencies.
-	adminHandlers := handlers.NewAdmin(renderer, sessionStore, contentStore, userStore, templateStore, mediaStore, revisionStore, storageClient, eng, pageCache, cacheLogStore, aiRegistry, aiCfg)
+	adminHandlers := handlers.NewAdmin(renderer, sessionStore, contentStore, userStore, templateStore, mediaStore, variantStore, revisionStore, storageClient, eng, pageCache, cacheLogStore, aiRegistry, aiCfg)
 	authHandlers := handlers.NewAuth(renderer, sessionStore, userStore)
-	publicHandlers := handlers.NewPublic(eng, contentStore, mediaStore, storageClient, pageCache)
+	publicHandlers := handlers.NewPublic(eng, contentStore, mediaStore, variantStore, storageClient, pageCache)
 
 	// Set up the Chi router with all middleware and routes.
 	r := router.New(sessionStore, adminHandlers, authHandlers, publicHandlers, secureCookies)

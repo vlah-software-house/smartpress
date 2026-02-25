@@ -35,6 +35,11 @@ func (m *mockProvider) Generate(ctx context.Context, systemPrompt, userPrompt st
 	return m.response, m.err
 }
 
+func (m *mockProvider) GenerateWithModel(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
+	// For testing, delegate to Generate (ignores model).
+	return m.Generate(ctx, systemPrompt, userPrompt)
+}
+
 // ---------- Registry.Generate ----------
 
 func TestRegistryGenerate(t *testing.T) {

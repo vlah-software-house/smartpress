@@ -145,18 +145,11 @@ func (a *Admin) AIGenerateImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate thumbnail.
+	// Generate responsive WebP variants (thumb, sm, md, lg).
 	var thumbKey *string
-	thumbData, err := generateThumbnail(bytes.NewReader(imgBytes), thumbMaxWidth)
-	if err != nil {
-		slog.Warn("ai image thumbnail failed", "error", err)
-	} else if thumbData != nil {
-		tk := fmt.Sprintf("media/%d/%02d/%s_thumb.jpg", now.Year(), now.Month(), fileID)
-		if err := a.storageClient.Upload(ctx, bucket, tk, "image/jpeg", bytes.NewReader(thumbData), int64(len(thumbData))); err != nil {
-			slog.Warn("ai image thumbnail upload failed", "error", err)
-		} else {
-			thumbKey = &tk
-		}
+	var pendingVariants []models.MediaVariant
+	if variantTypes[contentType] {
+		pendingVariants, thumbKey = a.generateAndUploadVariants(ctx, imgBytes, bucket, fileID, now)
 	}
 
 	// Create media record. Derive a descriptive filename from the prompt.
@@ -190,6 +183,9 @@ func (a *Admin) AIGenerateImage(w http.ResponseWriter, r *http.Request) {
 		writeAIError(w, "Failed to save image metadata.")
 		return
 	}
+
+	// Store variant records now that we have the media ID.
+	a.saveVariants(created.ID, pendingVariants)
 
 	// Build image URLs for the response.
 	imgURL := a.storageClient.FileURL(created.S3Key)

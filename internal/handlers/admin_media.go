@@ -6,12 +6,9 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"image"
-	"image/jpeg"
-	_ "image/gif" // register GIF decoder
-	_ "image/png" // register PNG decoder
 	"io"
 	"log/slog"
 	"net/http"
@@ -21,9 +18,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	_ "golang.org/x/image/webp" // register WebP decoder
-	"golang.org/x/image/draw"
 
+	"yaaicms/internal/imaging"
 	"yaaicms/internal/middleware"
 	"yaaicms/internal/models"
 	"yaaicms/internal/render"
@@ -32,16 +28,6 @@ import (
 const (
 	// maxUploadSize is the maximum allowed file upload size (50 MB).
 	maxUploadSize = 50 << 20
-
-	// thumbMaxWidth is the maximum thumbnail width in pixels.
-	thumbMaxWidth = 400
-
-	// thumbQuality is the JPEG quality for generated thumbnails.
-	thumbQuality = 80
-
-	// maxImagePixels caps the number of pixels to prevent memory bombs.
-	// 10000x10000 = 100 million pixels, ~400 MB decoded in RGBA.
-	maxImagePixels = 100_000_000
 
 	// presignExpiry is how long a presigned URL for private files is valid.
 	presignExpiry = 1 * time.Hour
@@ -57,9 +43,9 @@ var allowedMediaTypes = map[string]bool{
 	"application/pdf": true,
 }
 
-// thumbableTypes are image types that support thumbnail generation.
-// GIF is excluded to preserve animation; SVG is vector.
-var thumbableTypes = map[string]bool{
+// variantTypes are image types that support responsive variant generation
+// via libvips. GIF is excluded to preserve animation; SVG is vector.
+var variantTypes = map[string]bool{
 	"image/jpeg": true,
 	"image/png":  true,
 	"image/webp": true,
@@ -238,20 +224,11 @@ func (a *Admin) MediaUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate and upload thumbnail for supported image types.
+	// Generate responsive WebP variants for supported image types.
 	var thumbKey *string
-	if thumbableTypes[contentType] {
-		thumbData, err := generateThumbnail(bytes.NewReader(fileBytes), thumbMaxWidth)
-		if err != nil {
-			slog.Warn("thumbnail generation failed", "error", err, "key", s3Key)
-		} else if thumbData != nil {
-			tk := fmt.Sprintf("media/%d/%02d/%s_thumb.jpg", now.Year(), now.Month(), fileID)
-			if err := a.storageClient.Upload(ctx, bucket, tk, "image/jpeg", bytes.NewReader(thumbData), int64(len(thumbData))); err != nil {
-				slog.Warn("thumbnail upload failed", "error", err, "key", tk)
-			} else {
-				thumbKey = &tk
-			}
-		}
+	var pendingVariants []models.MediaVariant
+	if variantTypes[contentType] {
+		pendingVariants, thumbKey = a.generateAndUploadVariants(ctx, fileBytes, bucket, fileID, now)
 	}
 
 	// Store metadata in PostgreSQL.
@@ -276,6 +253,9 @@ func (a *Admin) MediaUpload(w http.ResponseWriter, r *http.Request) {
 		writeMediaError(w, "Failed to save file metadata.", http.StatusInternalServerError)
 		return
 	}
+
+	// Store variant records now that we have the media ID.
+	a.saveVariants(created.ID, pendingVariants)
 
 	// Build response URL.
 	url := a.storageClient.FileURL(created.S3Key)
@@ -305,6 +285,15 @@ func (a *Admin) MediaDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Fetch variant S3 keys before deletion (CASCADE will remove them from DB).
+	var variantKeys []string
+	if a.variantStore != nil {
+		variants, _ := a.variantStore.FindByMediaID(id)
+		for _, v := range variants {
+			variantKeys = append(variantKeys, v.S3Key)
+		}
+	}
+
 	// Delete from DB first (returns the row for S3 cleanup).
 	deleted, err := a.mediaStore.Delete(id)
 	if err != nil {
@@ -325,6 +314,11 @@ func (a *Admin) MediaDelete(w http.ResponseWriter, r *http.Request) {
 	if deleted.ThumbS3Key != nil {
 		if err := a.storageClient.Delete(ctx, deleted.Bucket, *deleted.ThumbS3Key); err != nil {
 			slog.Warn("s3 thumbnail delete failed", "error", err, "key", *deleted.ThumbS3Key)
+		}
+	}
+	for _, vk := range variantKeys {
+		if err := a.storageClient.Delete(ctx, deleted.Bucket, vk); err != nil {
+			slog.Warn("s3 variant delete failed", "error", err, "key", vk)
 		}
 	}
 
@@ -368,58 +362,196 @@ func (a *Admin) MediaServe(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, presigned, http.StatusFound)
 }
 
-// generateThumbnail creates a JPEG thumbnail from an image, constrained
-// to maxWidth while preserving aspect ratio. Returns nil if the image is
-// already smaller than maxWidth.
-func generateThumbnail(src io.Reader, maxWidth int) ([]byte, error) {
-	// Decode config first to check dimensions without full decode.
-	imgCfg, _, err := image.DecodeConfig(src)
+// generateAndUploadVariants creates responsive WebP variants for an image
+// using libvips and uploads each variant to S3. Returns the variant metadata
+// (without MediaID set — caller sets it after creating the media record) and
+// the "thumb" variant's S3 key for the media thumbnail.
+func (a *Admin) generateAndUploadVariants(ctx context.Context, fileBytes []byte, bucket, fileID string, now time.Time) ([]models.MediaVariant, *string) {
+	variants, err := imaging.GenerateVariants(fileBytes, nil)
 	if err != nil {
-		return nil, fmt.Errorf("decode config: %w", err)
-	}
-
-	// Check for image bombs.
-	if int64(imgCfg.Width)*int64(imgCfg.Height) > maxImagePixels {
-		return nil, fmt.Errorf("image too large: %dx%d exceeds %d pixels", imgCfg.Width, imgCfg.Height, maxImagePixels)
-	}
-
-	// Skip thumbnail if image is already small enough.
-	if imgCfg.Width <= maxWidth {
+		slog.Warn("variant generation failed", "error", err)
 		return nil, nil
 	}
 
-	// Seek back to start for full decode.
-	if seeker, ok := src.(io.Seeker); ok {
-		if _, err := seeker.Seek(0, io.SeekStart); err != nil {
-			return nil, fmt.Errorf("seek: %w", err)
+	var result []models.MediaVariant
+	var thumbKey *string
+	for _, v := range variants {
+		vKey := fmt.Sprintf("media/%d/%02d/%s_%s.webp", now.Year(), now.Month(), fileID, v.Name)
+		if err := a.storageClient.Upload(ctx, bucket, vKey, v.ContentType, bytes.NewReader(v.Data), int64(len(v.Data))); err != nil {
+			slog.Warn("variant upload failed", "error", err, "key", vKey, "variant", v.Name)
+			continue
 		}
-	} else {
-		return nil, fmt.Errorf("source does not support seeking")
+		result = append(result, models.MediaVariant{
+			Name:        v.Name,
+			Width:       v.Width,
+			Height:      v.Height,
+			S3Key:       vKey,
+			ContentType: v.ContentType,
+			SizeBytes:   int64(len(v.Data)),
+		})
+		if v.Name == "thumb" {
+			tk := vKey
+			thumbKey = &tk
+		}
+	}
+	return result, thumbKey
+}
+
+// saveVariants persists variant metadata to the database, setting the MediaID
+// on each variant. No-op if there are no variants or the store is nil.
+func (a *Admin) saveVariants(mediaID uuid.UUID, variants []models.MediaVariant) {
+	if len(variants) == 0 || a.variantStore == nil {
+		return
+	}
+	for i := range variants {
+		variants[i].MediaID = mediaID
+	}
+	if err := a.variantStore.CreateBatch(variants); err != nil {
+		slog.Warn("variant metadata insert failed", "error", err, "media_id", mediaID)
+	}
+}
+
+// MediaRegenerateVariants regenerates responsive WebP variants for a single
+// media item. Deletes any existing variants first, then creates new ones from
+// the original. Used from the admin media library's per-image action.
+func (a *Admin) MediaRegenerateVariants(w http.ResponseWriter, r *http.Request) {
+	if a.storageClient == nil || a.variantStore == nil {
+		http.Error(w, "Storage not configured", http.StatusServiceUnavailable)
+		return
 	}
 
-	// Full decode.
-	img, _, err := image.Decode(src)
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
 	if err != nil {
-		return nil, fmt.Errorf("decode image: %w", err)
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
 	}
 
-	// Calculate thumbnail dimensions preserving aspect ratio.
-	bounds := img.Bounds()
-	ratio := float64(maxWidth) / float64(bounds.Dx())
-	newWidth := maxWidth
-	newHeight := int(float64(bounds.Dy()) * ratio)
-
-	// Resize using CatmullRom (high quality).
-	dst := image.NewRGBA(image.Rect(0, 0, newWidth, newHeight))
-	draw.CatmullRom.Scale(dst, dst.Bounds(), img, bounds, draw.Over, nil)
-
-	// Encode to JPEG.
-	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, dst, &jpeg.Options{Quality: thumbQuality}); err != nil {
-		return nil, fmt.Errorf("encode thumbnail: %w", err)
+	media, err := a.mediaStore.FindByID(id)
+	if err != nil || media == nil {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
 	}
 
-	return buf.Bytes(), nil
+	if !variantTypes[media.ContentType] {
+		writeMediaError(w, "This media type does not support variants.", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	// Download the original image from S3.
+	original, err := a.storageClient.Download(ctx, media.Bucket, media.S3Key)
+	if err != nil {
+		slog.Error("download original for regen failed", "error", err, "key", media.S3Key)
+		writeMediaError(w, "Failed to download original image.", http.StatusInternalServerError)
+		return
+	}
+
+	// Delete existing variants from S3 and DB.
+	oldVariants, err := a.variantStore.DeleteByMediaID(id)
+	if err != nil {
+		slog.Warn("delete old variants failed", "error", err)
+	}
+	for _, v := range oldVariants {
+		if err := a.storageClient.Delete(ctx, media.Bucket, v.S3Key); err != nil {
+			slog.Warn("old variant s3 delete failed", "error", err, "key", v.S3Key)
+		}
+	}
+
+	// Generate fresh variants from the original.
+	now := time.Now()
+	fileID := strings.TrimSuffix(media.Filename, filepath.Ext(media.Filename))
+	pendingVariants, thumbKey := a.generateAndUploadVariants(ctx, original, media.Bucket, fileID, now)
+
+	// Update thumb_s3_key on the media record.
+	if thumbKey != nil {
+		media.ThumbS3Key = thumbKey
+		if err := a.mediaStore.UpdateThumbKey(id, thumbKey); err != nil {
+			slog.Warn("update thumb key failed", "error", err, "media_id", id)
+		}
+	}
+
+	// Store variant records.
+	a.saveVariants(id, pendingVariants)
+
+	slog.Info("variants regenerated", "media_id", id, "count", len(pendingVariants))
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"ok":      true,
+		"count":   len(pendingVariants),
+		"message": fmt.Sprintf("Regenerated %d variants.", len(pendingVariants)),
+	})
+}
+
+// MediaRegenerateBulk regenerates variants for all images that are missing them.
+// Uses the ListMediaWithoutVariants query to find candidates and processes
+// them sequentially. Returns a JSON summary.
+func (a *Admin) MediaRegenerateBulk(w http.ResponseWriter, r *http.Request) {
+	if a.storageClient == nil || a.variantStore == nil {
+		http.Error(w, "Storage not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Find images without any variants (cap at 50 per request to avoid timeout).
+	ids, err := a.variantStore.ListMediaWithoutVariants(50)
+	if err != nil {
+		slog.Error("list media without variants failed", "error", err)
+		writeMediaError(w, "Failed to find images to process.", http.StatusInternalServerError)
+		return
+	}
+
+	if len(ids) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"ok":        true,
+			"processed": 0,
+			"message":   "All images already have variants.",
+		})
+		return
+	}
+
+	ctx := r.Context()
+	var processed, failed int
+
+	for _, id := range ids {
+		media, err := a.mediaStore.FindByID(id)
+		if err != nil || media == nil {
+			failed++
+			continue
+		}
+
+		original, err := a.storageClient.Download(ctx, media.Bucket, media.S3Key)
+		if err != nil {
+			slog.Warn("bulk regen: download failed", "error", err, "media_id", id)
+			failed++
+			continue
+		}
+
+		now := time.Now()
+		fileID := strings.TrimSuffix(media.Filename, filepath.Ext(media.Filename))
+		pendingVariants, thumbKey := a.generateAndUploadVariants(ctx, original, media.Bucket, fileID, now)
+
+		if thumbKey != nil && media.ThumbS3Key == nil {
+			media.ThumbS3Key = thumbKey
+			_ = a.mediaStore.UpdateThumbKey(id, thumbKey)
+		}
+
+		a.saveVariants(id, pendingVariants)
+		processed++
+	}
+
+	slog.Info("bulk variant regeneration complete", "processed", processed, "failed", failed)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"ok":        true,
+		"processed": processed,
+		"failed":    failed,
+		"remaining": len(ids) - processed - failed,
+		"message":   fmt.Sprintf("Processed %d images (%d failed).", processed, failed),
+	})
 }
 
 // extensionFromType returns a file extension for known MIME types.

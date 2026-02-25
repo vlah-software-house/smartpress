@@ -6,8 +6,8 @@
 # YaaiCMS — Production Multi-Stage Dockerfile
 # =============================================================================
 # Stage 1: Build TailwindCSS + vendor frontend JS
-# Stage 2: Compile Go binary (with embedded assets)
-# Stage 3: Minimal runtime image
+# Stage 2: Compile Go binary (with embedded assets + libvips for image processing)
+# Stage 3: Minimal runtime image with libvips shared libraries
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -42,11 +42,11 @@ RUN mkdir -p web/static/js web/static/css \
        "https://unpkg.com/easymde@2.20.0/dist/easymde.min.css"
 
 # ---------------------------------------------------------------------------
-# Stage 2: Go binary build
+# Stage 2: Go binary build (CGO enabled for libvips image processing)
 # ---------------------------------------------------------------------------
 FROM golang:1.25-alpine AS builder
 
-RUN apk add --no-cache git ca-certificates
+RUN apk add --no-cache git ca-certificates build-base pkgconfig vips-dev
 
 WORKDIR /app
 
@@ -60,8 +60,8 @@ COPY . .
 # Overlay the compiled frontend assets so they get embedded via //go:embed.
 COPY --from=frontend /build/web/static/ ./web/static/
 
-# Build a fully static binary with stripped debug symbols.
-RUN CGO_ENABLED=0 GOOS=linux go build \
+# Build with CGO enabled for libvips bindings.
+RUN CGO_ENABLED=1 GOOS=linux go build \
     -ldflags="-s -w" \
     -o /yaaicms \
     ./cmd/yaaicms
@@ -71,11 +71,15 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 # ---------------------------------------------------------------------------
 FROM alpine:3.21
 
-# Install CA certificates for HTTPS calls to AI providers and S3.
+# Install CA certificates, timezone data, and libvips runtime libraries.
 RUN apk add --no-cache ca-certificates tzdata \
+    vips libwebp libpng libjpeg-turbo tiff giflib \
     && adduser -D -H -s /sbin/nologin yaaicms
 
 COPY --from=builder /yaaicms /usr/local/bin/yaaicms
+
+# Limit glib malloc arenas to prevent memory fragmentation under load.
+ENV MALLOC_ARENA_MAX=2
 
 USER yaaicms
 
