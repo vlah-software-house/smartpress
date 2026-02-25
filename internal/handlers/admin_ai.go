@@ -970,6 +970,8 @@ Available variables for PAGE templates:
 - {{.MetaDescription}} — SEO meta description
 - {{.MetaKeywords}} — SEO keywords
 - {{.FeaturedImageURL}} — Public URL of the featured image (empty string if none)
+- {{.FeaturedImageSrcset}} — Responsive srcset string for the featured image (e.g., "url_sm.webp 640w, url_md.webp 1024w, url_lg.webp 1920w"). Empty if none.
+- {{.FeaturedImageAlt}} — Alt text for the featured image. Empty if none.
 - {{.SiteName}} — The site name
 - {{.Year}} — Current year
 - {{.Slug}} — URL slug
@@ -977,7 +979,9 @@ Available variables for PAGE templates:
 
 Page templates are FULL page layouts. Include {{.Header}} at the top and {{.Footer}} at the bottom.
 Include the TailwindCSS CDN: <script src="https://cdn.tailwindcss.com"></script>
-Wrap the page in a proper HTML structure with <html>, <head>, <body> tags.`
+Wrap the page in a proper HTML structure with <html>, <head>, <body> tags.
+When displaying the featured image, use responsive srcset for optimal loading:
+{{if .FeaturedImageURL}}<img src="{{.FeaturedImageURL}}" {{if .FeaturedImageSrcset}}srcset="{{.FeaturedImageSrcset}}" sizes="(max-width: 640px) 640px, (max-width: 1024px) 1024px, 1920px"{{end}} alt="{{.FeaturedImageAlt}}" class="w-full ...">{{end}}`
 
 	case "article_loop":
 		vars = `
@@ -992,11 +996,15 @@ Available variables for ARTICLE LOOP templates:
   - {{.Slug}} — Post URL slug (link as /{{.Slug}})
   - {{.Excerpt}} — Post excerpt/summary
   - {{.FeaturedImageURL}} — Public URL of the featured image (empty string if none)
+  - {{.FeaturedImageSrcset}} — Responsive srcset string (e.g., "url_sm.webp 640w, url_md.webp 1024w"). Empty if none.
+  - {{.FeaturedImageAlt}} — Alt text for the featured image. Empty if none.
   - {{.PublishedAt}} — Publication date
 
 Article loop templates show a list/grid of blog posts. Include header and footer.
 Include the TailwindCSS CDN: <script src="https://cdn.tailwindcss.com"></script>
-Wrap the page in a proper HTML structure with <html>, <head>, <body> tags.`
+Wrap the page in a proper HTML structure with <html>, <head>, <body> tags.
+When displaying post images, use responsive srcset for optimal loading:
+{{if .FeaturedImageURL}}<img src="{{.FeaturedImageURL}}" {{if .FeaturedImageSrcset}}srcset="{{.FeaturedImageSrcset}}" sizes="(max-width: 640px) 640px, 1024px"{{end}} alt="{{.FeaturedImageAlt}}" class="w-full ...">{{end}}`
 
 	default:
 		vars = "\nGenerate a generic HTML template using TailwindCSS."
@@ -1016,8 +1024,10 @@ func buildPreviewData(tmplType string) any {
 			Body:             "<p>This is preview content. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p><p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.</p>",
 			Excerpt:          "A brief preview excerpt for the page.",
 			MetaDescription:  "Preview meta description for search engines",
-			FeaturedImageURL: "https://placehold.co/1200x630/0f172a/e2e8f0?text=Featured+Image",
-			Slug:             "preview-page",
+			FeaturedImageURL:    "https://placehold.co/1200x630/0f172a/e2e8f0?text=Featured+Image",
+			FeaturedImageSrcset: "https://placehold.co/640x336/0f172a/e2e8f0?text=640w 640w, https://placehold.co/1024x538/0f172a/e2e8f0?text=1024w 1024w, https://placehold.co/1920x1008/0f172a/e2e8f0?text=1920w 1920w",
+			FeaturedImageAlt:    "A preview featured image",
+			Slug:                "preview-page",
 			PublishedAt:      "February 25, 2026",
 			Header:           "<header class='bg-gray-800 text-white p-4'><nav class='max-w-6xl mx-auto flex justify-between items-center'><span class='text-xl font-bold'>YaaiCMS</span><div class='space-x-4'><a href='/' class='hover:text-gray-300'>Home</a><a href='/blog' class='hover:text-gray-300'>Blog</a></div></nav></header>",
 			Footer:           "<footer class='bg-gray-800 text-gray-400 p-6 text-center text-sm'>&copy; 2026 YaaiCMS. All rights reserved.</footer>",
@@ -1028,9 +1038,9 @@ func buildPreviewData(tmplType string) any {
 			SiteName: "YaaiCMS",
 			Title:    "Blog",
 			Posts: []engine.PostItem{
-				{Title: "Getting Started with YaaiCMS", Slug: "getting-started", Excerpt: "Learn how to set up your YaaiCMS CMS and create your first blog post.", FeaturedImageURL: "https://placehold.co/800x450/0f172a/e2e8f0?text=Post+1", PublishedAt: "February 25, 2026"},
-				{Title: "Building Modern Websites", Slug: "modern-websites", Excerpt: "Discover the latest techniques for building fast, responsive websites.", FeaturedImageURL: "https://placehold.co/800x450/1e3a5f/e2e8f0?text=Post+2", PublishedAt: "February 24, 2026"},
-				{Title: "AI-Powered Content Creation", Slug: "ai-content", Excerpt: "How artificial intelligence is transforming the way we create web content.", FeaturedImageURL: "https://placehold.co/800x450/3b0764/e2e8f0?text=Post+3", PublishedAt: "February 23, 2026"},
+				{Title: "Getting Started with YaaiCMS", Slug: "getting-started", Excerpt: "Learn how to set up your YaaiCMS CMS and create your first blog post.", FeaturedImageURL: "https://placehold.co/800x450/0f172a/e2e8f0?text=Post+1", FeaturedImageSrcset: "https://placehold.co/640x360/0f172a/e2e8f0?text=640w 640w, https://placehold.co/800x450/0f172a/e2e8f0?text=800w 800w", FeaturedImageAlt: "Getting started guide", PublishedAt: "February 25, 2026"},
+				{Title: "Building Modern Websites", Slug: "modern-websites", Excerpt: "Discover the latest techniques for building fast, responsive websites.", FeaturedImageURL: "https://placehold.co/800x450/1e3a5f/e2e8f0?text=Post+2", FeaturedImageSrcset: "https://placehold.co/640x360/1e3a5f/e2e8f0?text=640w 640w, https://placehold.co/800x450/1e3a5f/e2e8f0?text=800w 800w", FeaturedImageAlt: "Modern website design", PublishedAt: "February 24, 2026"},
+				{Title: "AI-Powered Content Creation", Slug: "ai-content", Excerpt: "How artificial intelligence is transforming the way we create web content.", FeaturedImageURL: "https://placehold.co/800x450/3b0764/e2e8f0?text=Post+3", FeaturedImageSrcset: "https://placehold.co/640x360/3b0764/e2e8f0?text=640w 640w, https://placehold.co/800x450/3b0764/e2e8f0?text=800w 800w", FeaturedImageAlt: "AI content creation", PublishedAt: "February 23, 2026"},
 			},
 			Header: "<header class='bg-gray-800 text-white p-4'><nav class='max-w-6xl mx-auto flex justify-between items-center'><span class='text-xl font-bold'>YaaiCMS</span><div class='space-x-4'><a href='/' class='hover:text-gray-300'>Home</a><a href='/blog' class='hover:text-gray-300'>Blog</a></div></nav></header>",
 			Footer: "<footer class='bg-gray-800 text-gray-400 p-6 text-center text-sm'>&copy; 2026 YaaiCMS. All rights reserved.</footer>",
