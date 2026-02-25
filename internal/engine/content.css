@@ -1,0 +1,207 @@
+/* Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me> */
+/* Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh> */
+/* All rights reserved. See LICENSE for details. */
+
+/* content.css — Typographic styles for Markdown-rendered content.
+ * Scoped to .yaaicms-content so it never leaks into template layout.
+ * Injected automatically by the engine into every public page render. */
+
+.yaaicms-content {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+    font-size: 1.0625rem;
+    line-height: 1.75;
+    color: #1f2937;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* --- Headings --- */
+
+.yaaicms-content h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 2rem 0 0.75rem;
+    color: #111827;
+}
+
+.yaaicms-content h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 1.75rem 0 0.5rem;
+    color: #111827;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.yaaicms-content h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.4;
+    margin: 1.5rem 0 0.4rem;
+    color: #1f2937;
+}
+
+.yaaicms-content h4 {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    line-height: 1.5;
+    margin: 1.25rem 0 0.3rem;
+    color: #1f2937;
+}
+
+/* Remove top margin on first heading / paragraph */
+.yaaicms-content > :first-child { margin-top: 0; }
+
+/* --- Paragraphs & inline --- */
+
+.yaaicms-content p {
+    margin: 0.75rem 0;
+}
+
+.yaaicms-content strong { font-weight: 600; }
+.yaaicms-content em { font-style: italic; }
+
+.yaaicms-content a {
+    color: #4f46e5;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-color: #a5b4fc;
+    transition: color 0.15s, text-decoration-color 0.15s;
+}
+
+.yaaicms-content a:hover {
+    color: #4338ca;
+    text-decoration-color: #4f46e5;
+}
+
+/* --- Lists --- */
+
+.yaaicms-content ul {
+    list-style-type: disc;
+    margin: 0.75rem 0;
+    padding-left: 1.75rem;
+}
+
+.yaaicms-content ol {
+    list-style-type: decimal;
+    margin: 0.75rem 0;
+    padding-left: 1.75rem;
+}
+
+.yaaicms-content li {
+    margin: 0.25rem 0;
+}
+
+.yaaicms-content li > ul,
+.yaaicms-content li > ol {
+    margin: 0.125rem 0;
+}
+
+/* GFM task lists */
+.yaaicms-content li input[type="checkbox"] {
+    margin-right: 0.4rem;
+    vertical-align: middle;
+}
+
+/* --- Blockquotes --- */
+
+.yaaicms-content blockquote {
+    border-left: 4px solid #6366f1;
+    padding: 0.5rem 1rem;
+    margin: 1rem 0;
+    color: #4b5563;
+    background: #f9fafb;
+    border-radius: 0 0.375rem 0.375rem 0;
+}
+
+.yaaicms-content blockquote p {
+    margin: 0.25rem 0;
+}
+
+/* --- Code --- */
+
+.yaaicms-content code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.875em;
+    background: #f3f4f6;
+    padding: 0.15em 0.35em;
+    border-radius: 0.25rem;
+    color: #be185d;
+}
+
+.yaaicms-content pre {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    line-height: 1.5;
+    font-size: 0.875rem;
+}
+
+/* Fenced code blocks: pre > code — override inline code style */
+.yaaicms-content pre code {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+    color: inherit;
+    font-size: inherit;
+}
+
+/* Default dark background for code blocks without highlighting */
+.yaaicms-content pre:not(.chroma) {
+    background: #1e1e2e;
+    color: #cdd6f4;
+}
+
+/* --- Horizontal rules --- */
+
+.yaaicms-content hr {
+    border: none;
+    border-top: 1px solid #d1d5db;
+    margin: 1.75rem 0;
+}
+
+/* --- Images --- */
+
+.yaaicms-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    margin: 1rem 0;
+}
+
+/* --- Tables (GFM) --- */
+
+.yaaicms-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.9375rem;
+}
+
+.yaaicms-content th {
+    background: #f3f4f6;
+    font-weight: 600;
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 2px solid #d1d5db;
+}
+
+.yaaicms-content td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.yaaicms-content tr:last-child td {
+    border-bottom: none;
+}
+
+/* --- Strikethrough (GFM) --- */
+
+.yaaicms-content del {
+    text-decoration: line-through;
+    color: #9ca3af;
+}

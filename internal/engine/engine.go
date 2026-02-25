@@ -9,6 +9,7 @@ package engine
 
 import (
 	"bytes"
+	_ "embed"
 	"fmt"
 	"html/template"
 	"log/slog"
@@ -23,6 +24,20 @@ import (
 	"yaaicms/internal/storage"
 	"yaaicms/internal/store"
 )
+
+// contentCSS is the embedded typographic stylesheet for Markdown-rendered
+// content bodies. Scoped to .yaaicms-content and injected into every
+// public page render so content HTML always has proper typography.
+//
+//go:embed content.css
+var contentCSS string
+
+// contentStyleTag is the pre-built <style> block, computed once at init.
+var contentStyleTag string
+
+func init() {
+	contentStyleTag = "<style>" + contentCSS + "</style>"
+}
 
 // FeaturedImage holds image data for templates including responsive variants.
 // Templates can use {{.FeaturedImageURL}} for the main URL (backward-compat)
@@ -162,6 +177,9 @@ func (e *Engine) RenderPage(content *models.Content, img *FeaturedImage) ([]byte
 	// Rewrite inline <img> tags to include responsive srcset when variants exist.
 	bodyHTML = e.rewriteBodyImages(bodyHTML)
 
+	// Wrap the body in a scoped container so content.css styles apply.
+	bodyHTML = `<div class="yaaicms-content">` + bodyHTML + `</div>`
+
 	data := PageData{
 		SiteName:    "YaaiCMS",
 		Title:       content.Title,
@@ -190,7 +208,12 @@ func (e *Engine) RenderPage(content *models.Content, img *FeaturedImage) ([]byte
 	}
 
 	// Compile and execute the page template (L1 cached by ID+version).
-	return e.compileAndRender(pageTmpl.ID.String(), pageTmpl.Version, pageTmpl.HTMLContent, data)
+	rendered, err := e.compileAndRender(pageTmpl.ID.String(), pageTmpl.Version, pageTmpl.HTMLContent, data)
+	if err != nil {
+		return nil, err
+	}
+
+	return injectContentCSS(rendered), nil
 }
 
 // RenderPostList renders the article_loop template with a list of posts.
@@ -243,7 +266,12 @@ func (e *Engine) RenderPostList(posts []models.Content, featuredImages map[strin
 		Year:     time.Now().Year(),
 	}
 
-	return e.compileAndRender(loopTmpl.ID.String(), loopTmpl.Version, loopTmpl.HTMLContent, data)
+	rendered, err := e.compileAndRender(loopTmpl.ID.String(), loopTmpl.Version, loopTmpl.HTMLContent, data)
+	if err != nil {
+		return nil, err
+	}
+
+	return injectContentCSS(rendered), nil
 }
 
 // ValidateTemplate attempts to compile a template string and returns an
@@ -307,6 +335,18 @@ func (e *Engine) compileAndRender(id string, version int, tmplContent string, da
 	}
 
 	return buf.Bytes(), nil
+}
+
+// injectContentCSS inserts the content typography <style> block into the
+// rendered HTML. It injects before </head> when present (standard HTML
+// documents), otherwise prepends to the output (template fragments).
+func injectContentCSS(rendered []byte) []byte {
+	html := string(rendered)
+	if idx := strings.Index(strings.ToLower(html), "</head>"); idx != -1 {
+		return []byte(html[:idx] + contentStyleTag + html[idx:])
+	}
+	// No </head> — prepend the style block.
+	return []byte(contentStyleTag + html)
 }
 
 // RewriteBodyImages is the exported wrapper for rewriteBodyImages, allowing
