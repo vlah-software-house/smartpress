@@ -9,9 +9,11 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"html"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -55,6 +57,7 @@ type Admin struct {
 	userStore     *store.UserStore
 	templateStore *store.TemplateStore
 	mediaStore    *store.MediaStore
+	revisionStore *store.RevisionStore
 	storageClient *storage.Client
 	engine        *engine.Engine
 	pageCache     *cache.PageCache
@@ -65,7 +68,7 @@ type Admin struct {
 
 // NewAdmin creates a new Admin handler group with the given dependencies.
 // storageClient and mediaStore may be nil if S3 is not configured.
-func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, mediaStore *store.MediaStore, storageClient *storage.Client, eng *engine.Engine, pageCache *cache.PageCache, cacheLog *store.CacheLogStore, aiRegistry *ai.Registry, aiCfg *AIConfig) *Admin {
+func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, mediaStore *store.MediaStore, revisionStore *store.RevisionStore, storageClient *storage.Client, eng *engine.Engine, pageCache *cache.PageCache, cacheLog *store.CacheLogStore, aiRegistry *ai.Registry, aiCfg *AIConfig) *Admin {
 	return &Admin{
 		renderer:      renderer,
 		sessions:      sessions,
@@ -73,6 +76,7 @@ func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *
 		userStore:     userStore,
 		templateStore: templateStore,
 		mediaStore:    mediaStore,
+		revisionStore: revisionStore,
 		storageClient: storageClient,
 		engine:        eng,
 		pageCache:     pageCache,
@@ -349,6 +353,13 @@ func (a *Admin) editContent(w http.ResponseWriter, r *http.Request, section stri
 		}
 	}
 
+	// Load revisions for the history panel.
+	revisions, err := a.revisionStore.ListByContentID(item.ID)
+	if err != nil {
+		slog.Error("failed to load revisions", "error", err)
+	}
+	data["Revisions"] = revisions
+
 	a.renderer.Page(w, r, "content_form", &render.PageData{
 		Title:   title,
 		Section: section,
@@ -357,6 +368,7 @@ func (a *Admin) editContent(w http.ResponseWriter, r *http.Request, section stri
 }
 
 // updateContent handles the edit form submission for a content item.
+// Before applying changes, it snapshots the current state as a revision.
 func (a *Admin) updateContent(w http.ResponseWriter, r *http.Request, section string) {
 	idStr := chi.URLParam(r, "id")
 	id, err := uuid.Parse(idStr)
@@ -371,6 +383,16 @@ func (a *Admin) updateContent(w http.ResponseWriter, r *http.Request, section st
 		return
 	}
 
+	// Capture the old state BEFORE applying form values (for revision snapshot).
+	oldTitle := item.Title
+	oldBody := item.Body
+	oldSlug := item.Slug
+	oldExcerpt := item.Excerpt
+	oldStatus := string(item.Status)
+	oldMetaDesc := item.MetaDescription
+	oldMetaKw := item.MetaKeywords
+	oldFeaturedImageID := item.FeaturedImageID
+
 	title := r.FormValue("title")
 	body := r.FormValue("body")
 	newSlug := r.FormValue("slug")
@@ -378,6 +400,7 @@ func (a *Admin) updateContent(w http.ResponseWriter, r *http.Request, section st
 	metaDesc := r.FormValue("meta_description")
 	metaKw := r.FormValue("meta_keywords")
 	featuredImageIDStr := r.FormValue("featured_image_id")
+	revisionMessage := strings.TrimSpace(r.FormValue("revision_message"))
 
 	// Validate inputs.
 	if errMsg := validateContent(title, newSlug, body); errMsg != "" {
@@ -407,6 +430,7 @@ func (a *Admin) updateContent(w http.ResponseWriter, r *http.Request, section st
 		return
 	}
 
+	// Apply new values.
 	item.Title = title
 	item.Body = body
 	item.Status = models.ContentStatus(r.FormValue("status"))
@@ -439,6 +463,28 @@ func (a *Admin) updateContent(w http.ResponseWriter, r *http.Request, section st
 		item.FeaturedImageID = nil
 	}
 
+	// Create revision snapshot of the OLD state before persisting changes.
+	sess := middleware.SessionFromCtx(r.Context())
+	rev := &models.ContentRevision{
+		ContentID:       item.ID,
+		Title:           oldTitle,
+		Slug:            oldSlug,
+		Body:            oldBody,
+		Excerpt:         oldExcerpt,
+		Status:          oldStatus,
+		MetaDescription: oldMetaDesc,
+		MetaKeywords:    oldMetaKw,
+		FeaturedImageID: oldFeaturedImageID,
+		RevisionTitle:   revisionMessage,
+		CreatedBy:       sess.UserID,
+	}
+
+	created, revErr := a.revisionStore.Create(rev)
+	if revErr != nil {
+		slog.Error("failed to create revision", "content_id", item.ID, "error", revErr)
+		// Non-fatal: proceed with the update even if revision creation fails.
+	}
+
 	if err := a.contentStore.Update(item); err != nil {
 		slog.Error("update content failed", "error", err)
 		a.renderer.Page(w, r, "content_form", &render.PageData{
@@ -454,8 +500,228 @@ func (a *Admin) updateContent(w http.ResponseWriter, r *http.Request, section st
 		return
 	}
 
+	// Generate AI revision title + changelog in the background.
+	if created != nil {
+		go a.generateRevisionMeta(created.ID, rev, item, revisionMessage)
+	}
+
 	a.invalidateContentCache(r.Context(), item.ID, item.Slug, "update")
 	http.Redirect(w, r, "/admin/"+section, http.StatusSeeOther)
+}
+
+// generateRevisionMeta uses AI to create a short title and changelog for a
+// revision, comparing the old state (rev) with the new state (updated item).
+// Runs in a background goroutine — errors are logged but don't affect the user.
+func (a *Admin) generateRevisionMeta(revID uuid.UUID, old *models.ContentRevision, updated *models.Content, userMessage string) {
+	// Build a concise diff summary for the AI.
+	var changes []string
+	if old.Title != updated.Title {
+		changes = append(changes, fmt.Sprintf("Title: %q -> %q", truncateStr(old.Title, 80), truncateStr(updated.Title, 80)))
+	}
+	if old.Body != updated.Body {
+		oldLen := len(old.Body)
+		newLen := len(updated.Body)
+		changes = append(changes, fmt.Sprintf("Body: changed (%d -> %d chars)", oldLen, newLen))
+	}
+	if old.Slug != updated.Slug {
+		changes = append(changes, fmt.Sprintf("Slug: %q -> %q", old.Slug, updated.Slug))
+	}
+	if old.Status != string(updated.Status) {
+		changes = append(changes, fmt.Sprintf("Status: %s -> %s", old.Status, string(updated.Status)))
+	}
+	if ptrStr(old.Excerpt) != ptrStr(updated.Excerpt) {
+		changes = append(changes, "Excerpt: updated")
+	}
+	if ptrStr(old.MetaDescription) != ptrStr(updated.MetaDescription) {
+		changes = append(changes, "Meta description: updated")
+	}
+	if ptrStr(old.MetaKeywords) != ptrStr(updated.MetaKeywords) {
+		changes = append(changes, "Meta keywords: updated")
+	}
+	if ptrUUID(old.FeaturedImageID) != ptrUUID(updated.FeaturedImageID) {
+		changes = append(changes, "Featured image: changed")
+	}
+
+	if len(changes) == 0 {
+		changes = append(changes, "No visible changes")
+	}
+
+	diffSummary := strings.Join(changes, "\n")
+
+	// Generate revision title if the user didn't provide one.
+	ctx := context.Background()
+	revTitle := userMessage
+	if revTitle == "" {
+		prompt := fmt.Sprintf("Changes made:\n%s\n\nOld title: %q\nNew title: %q",
+			diffSummary, truncateStr(old.Title, 100), truncateStr(updated.Title, 100))
+
+		systemPrompt := `You are a version control assistant. Generate a very short revision title
+(max 60 characters) that summarizes the changes made, like a git commit message.
+Output ONLY the title text, nothing else. Use imperative mood (e.g. "Update title and body content").`
+
+		result, err := a.aiRegistry.Generate(ctx, systemPrompt, prompt)
+		if err != nil {
+			slog.Warn("ai revision title failed", "error", err)
+			revTitle = "Content updated"
+		} else {
+			revTitle = strings.TrimSpace(result)
+			revTitle = strings.Trim(revTitle, `"'`)
+			if len(revTitle) > 80 {
+				revTitle = revTitle[:77] + "..."
+			}
+		}
+	}
+
+	// Generate a changelog describing what changed.
+	changelogPrompt := fmt.Sprintf("Changes:\n%s", diffSummary)
+
+	changelogSystem := `You are a version control assistant. Generate a brief changelog (2-4 bullet points)
+describing what changed in this content revision. Each bullet should start with "- ".
+Be concise and factual. Output ONLY the bullet points, nothing else.`
+
+	changelog, err := a.aiRegistry.Generate(ctx, changelogSystem, changelogPrompt)
+	if err != nil {
+		slog.Warn("ai revision changelog failed", "error", err)
+		changelog = diffSummary
+	} else {
+		changelog = strings.TrimSpace(changelog)
+	}
+
+	if err := a.revisionStore.UpdateMeta(revID, revTitle, changelog); err != nil {
+		slog.Error("failed to update revision meta", "id", revID, "error", err)
+	}
+}
+
+// RevisionRestore restores a content item to the state captured in a revision.
+// Returns an HTML fragment that triggers a page redirect via HTMX.
+func (a *Admin) RevisionRestore(w http.ResponseWriter, r *http.Request) {
+	revIDStr := chi.URLParam(r, "revisionID")
+	revID, err := uuid.Parse(revIDStr)
+	if err != nil {
+		http.Error(w, "Invalid revision ID", http.StatusBadRequest)
+		return
+	}
+
+	rev, err := a.revisionStore.FindByID(revID)
+	if err != nil || rev == nil {
+		http.Error(w, "Revision not found", http.StatusNotFound)
+		return
+	}
+
+	// Load the content item to check it exists and to create a "pre-restore" revision.
+	item, err := a.contentStore.FindByID(rev.ContentID)
+	if err != nil || item == nil {
+		http.Error(w, "Content not found", http.StatusNotFound)
+		return
+	}
+
+	// Create a revision of the current state before restoring.
+	sess := middleware.SessionFromCtx(r.Context())
+	preRestore := &models.ContentRevision{
+		ContentID:       item.ID,
+		Title:           item.Title,
+		Slug:            item.Slug,
+		Body:            item.Body,
+		Excerpt:         item.Excerpt,
+		Status:          string(item.Status),
+		MetaDescription: item.MetaDescription,
+		MetaKeywords:    item.MetaKeywords,
+		FeaturedImageID: item.FeaturedImageID,
+		RevisionTitle:   "Before restore",
+		RevisionLog:     fmt.Sprintf("- State before restoring to revision from %s", rev.CreatedAt.Format("Jan 2, 2006 15:04")),
+		CreatedBy:       sess.UserID,
+	}
+	if _, err := a.revisionStore.Create(preRestore); err != nil {
+		slog.Error("failed to create pre-restore revision", "error", err)
+	}
+
+	// Apply the revision data to the content item.
+	item.Title = rev.Title
+	item.Slug = rev.Slug
+	item.Body = rev.Body
+	item.Excerpt = rev.Excerpt
+	item.Status = models.ContentStatus(rev.Status)
+	item.MetaDescription = rev.MetaDescription
+	item.MetaKeywords = rev.MetaKeywords
+	item.FeaturedImageID = rev.FeaturedImageID
+
+	if err := a.contentStore.Update(item); err != nil {
+		slog.Error("restore revision failed", "error", err)
+		http.Error(w, "Failed to restore revision", http.StatusInternalServerError)
+		return
+	}
+
+	a.invalidateContentCache(r.Context(), item.ID, item.Slug, "restore")
+
+	// Determine section for redirect.
+	section := "posts"
+	if item.Type == models.ContentTypePage {
+		section = "pages"
+	}
+	redirectURL := fmt.Sprintf("/admin/%s/%s", section, item.ID)
+
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("HX-Redirect", redirectURL)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+}
+
+// RevisionUpdateTitle updates a revision's user-provided title.
+func (a *Admin) RevisionUpdateTitle(w http.ResponseWriter, r *http.Request) {
+	revIDStr := chi.URLParam(r, "revisionID")
+	revID, err := uuid.Parse(revIDStr)
+	if err != nil {
+		http.Error(w, "Invalid revision ID", http.StatusBadRequest)
+		return
+	}
+
+	rev, err := a.revisionStore.FindByID(revID)
+	if err != nil || rev == nil {
+		http.Error(w, "Revision not found", http.StatusNotFound)
+		return
+	}
+
+	newTitle := strings.TrimSpace(r.FormValue("revision_title"))
+	if newTitle == "" {
+		writeAIError(w, "Title cannot be empty.")
+		return
+	}
+
+	if err := a.revisionStore.UpdateMeta(revID, newTitle, rev.RevisionLog); err != nil {
+		slog.Error("failed to update revision title", "error", err)
+		writeAIError(w, "Failed to update revision title.")
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprintf(w, `<span class="text-xs font-medium text-gray-900">%s</span>`, html.EscapeString(newTitle))
+}
+
+// ptrStr safely dereferences a *string pointer, returning "" if nil.
+func ptrStr(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+// ptrUUID safely dereferences a *uuid.UUID pointer, returning "" if nil.
+func ptrUUID(u *uuid.UUID) string {
+	if u == nil {
+		return ""
+	}
+	return u.String()
+}
+
+// truncateStr cuts a string to maxLen, appending "..." if truncated.
+func truncateStr(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }
 
 // deleteContent handles content deletion.

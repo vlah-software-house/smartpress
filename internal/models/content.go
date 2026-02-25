@@ -49,3 +49,22 @@ type Content struct {
 func (c *Content) IsPublished() bool {
 	return c.Status == ContentStatusPublished
 }
+
+// ContentRevision stores a snapshot of a content item's state before an edit.
+// Created automatically on every save, it enables reverting to previous versions.
+type ContentRevision struct {
+	ID              uuid.UUID  `json:"id"`
+	ContentID       uuid.UUID  `json:"content_id"`
+	Title           string     `json:"title"`
+	Slug            string     `json:"slug"`
+	Body            string     `json:"body"`
+	Excerpt         *string    `json:"excerpt,omitempty"`
+	Status          string     `json:"status"`
+	MetaDescription *string    `json:"meta_description,omitempty"`
+	MetaKeywords    *string    `json:"meta_keywords,omitempty"`
+	FeaturedImageID *uuid.UUID `json:"featured_image_id,omitempty"`
+	RevisionTitle   string     `json:"revision_title"`
+	RevisionLog     string     `json:"revision_log"`
+	CreatedBy       uuid.UUID  `json:"created_by"`
+	CreatedAt       time.Time  `json:"created_at"`
+}

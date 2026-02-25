@@ -117,6 +117,10 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 				r.Get("/{id}/url", admin.MediaServe)
 			})
 
+			// Content Revisions
+			r.Post("/revisions/{revisionID}/restore", admin.RevisionRestore)
+			r.Put("/revisions/{revisionID}/title", admin.RevisionUpdateTitle)
+
 			// User management — admin only
 			r.Route("/users", func(r chi.Router) {
 				r.Use(middleware.RequireAdmin)
