@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-25
 **Branch:** feat/featured-image
-**Commit:** b63c8fa
+**Commits:** b63c8fa, d5a37e8
 
 ## Changes
 
@@ -30,7 +30,15 @@
   7. `AIExtractTags` — checks `title + body`
   8. `AITemplateGenerate` — checks `prompt`
 
+### Fallback Moderator (`internal/ai/moderation.go` — d5a37e8)
+- `fallbackModerator` wraps primary (OpenAI) + secondary (Mistral) moderators
+- Uses `atomic.Bool` for lock-free primary/secondary switching
+- On 401/403 from primary: permanently switches to secondary for all future calls
+- On transient errors: tries secondary once without permanent switch
+- Fixes issue where OpenAI `sk-proj-*` (project-scoped) keys return 403 on moderation endpoint
+
 ### Design Decisions
 - OpenAI moderation is free and works regardless of which provider is active for generation
-- Graceful degradation: if moderation API fails or no moderator configured, prompts pass through (providers have built-in safety filters)
+- Fallback moderator ensures moderation works even with restricted API keys
+- Graceful degradation: if both moderators fail or none configured, prompts pass through (providers have built-in safety filters)
 - Flagged prompts return human-readable category names asking the user to reformulate
