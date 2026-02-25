@@ -125,6 +125,8 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 			r.Route("/users", func(r chi.Router) {
 				r.Use(middleware.RequireAdmin)
 				r.Get("/", admin.UsersList)
+				r.Get("/new", admin.UserNew)
+				r.Post("/", admin.UserCreate)
 				r.Post("/{id}/reset-2fa", admin.UserResetTwoFA)
 			})
 

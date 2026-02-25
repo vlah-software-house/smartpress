@@ -10,6 +10,16 @@
             <h2 class="text-xl font-semibold text-gray-900">Users</h2>
             <p class="mt-1 text-sm text-gray-500">Manage user accounts and roles.</p>
         </div>
+        <a href="/admin/users/new"
+           hx-get="/admin/users/new"
+           hx-target="#main-content"
+           hx-push-url="true"
+           class="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM4 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 10.374 21c-2.331 0-4.512-.645-6.374-1.766Z" />
+            </svg>
+            New User
+        </a>
     </div>
 
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">

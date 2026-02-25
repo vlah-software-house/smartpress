@@ -1010,6 +1010,91 @@ func (a *Admin) UserResetTwoFA(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
 }
 
+// UserNew renders the new user creation form.
+func (a *Admin) UserNew(w http.ResponseWriter, r *http.Request) {
+	a.renderer.Page(w, r, "user_form", &render.PageData{
+		Title:   "New User",
+		Section: "users",
+		Data:    map[string]any{},
+	})
+}
+
+// UserCreate handles the new user form submission.
+func (a *Admin) UserCreate(w http.ResponseWriter, r *http.Request) {
+	email := strings.TrimSpace(r.FormValue("email"))
+	displayName := strings.TrimSpace(r.FormValue("display_name"))
+	password := r.FormValue("password")
+	role := models.Role(r.FormValue("role"))
+
+	// Validate inputs.
+	var errMsg string
+	switch {
+	case email == "":
+		errMsg = "Email is required."
+	case displayName == "":
+		errMsg = "Display name is required."
+	case len(password) < 8:
+		errMsg = "Password must be at least 8 characters."
+	case role != models.RoleAdmin && role != models.RoleEditor && role != models.RoleAuthor:
+		errMsg = "Invalid role."
+	}
+
+	if errMsg != "" {
+		a.renderer.Page(w, r, "user_form", &render.PageData{
+			Title:   "New User",
+			Section: "users",
+			Data: map[string]any{
+				"Error":       errMsg,
+				"Email":       email,
+				"DisplayName": displayName,
+				"Role":        string(role),
+			},
+		})
+		return
+	}
+
+	// Check for duplicate email.
+	existing, _ := a.userStore.FindByEmail(email)
+	if existing != nil {
+		a.renderer.Page(w, r, "user_form", &render.PageData{
+			Title:   "New User",
+			Section: "users",
+			Data: map[string]any{
+				"Error":       "A user with this email already exists.",
+				"Email":       email,
+				"DisplayName": displayName,
+				"Role":        string(role),
+			},
+		})
+		return
+	}
+
+	if _, err := a.userStore.Create(email, password, displayName, role); err != nil {
+		slog.Error("create user failed", "error", err)
+		a.renderer.Page(w, r, "user_form", &render.PageData{
+			Title:   "New User",
+			Section: "users",
+			Data: map[string]any{
+				"Error":       "Failed to create user.",
+				"Email":       email,
+				"DisplayName": displayName,
+				"Role":        string(role),
+			},
+		})
+		return
+	}
+
+	sess := middleware.SessionFromCtx(r.Context())
+	slog.Info("user created", "admin", sess.Email, "new_user", email, "role", role)
+
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("HX-Redirect", "/admin/users")
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+}
+
 // --- Cache invalidation helpers ---
 
 // invalidateContentCache purges the L2 page cache for a content item and

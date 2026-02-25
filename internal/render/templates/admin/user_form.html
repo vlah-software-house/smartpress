@@ -1,0 +1,88 @@
+{{/* Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me> */}}
+{{/* Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh> */}}
+{{/* All rights reserved. See LICENSE for details. */}}
+{{define "title"}}New User{{end}}
+
+{{define "content"}}
+<div class="max-w-lg mx-auto space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-xl font-semibold text-gray-900">New User</h2>
+            <p class="mt-1 text-sm text-gray-500">Create a new user account. They will set up 2FA on first login.</p>
+        </div>
+    </div>
+
+    {{if and .Data .Data.Error}}
+    <div class="rounded-md bg-red-50 p-4">
+        <div class="flex">
+            <svg class="h-5 w-5 text-red-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+            </svg>
+            <p class="ml-3 text-sm text-red-700">{{.Data.Error}}</p>
+        </div>
+    </div>
+    {{end}}
+
+    <form method="POST" action="/admin/users"
+          hx-post="/admin/users"
+          hx-target="#main-content"
+          class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-5">
+
+        <div>
+            <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input type="email" id="email" name="email" required
+                   value="{{if and .Data .Data.Email}}{{.Data.Email}}{{end}}"
+                   placeholder="user@example.com"
+                   class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                          placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+        </div>
+
+        <div>
+            <label for="display_name" class="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
+            <input type="text" id="display_name" name="display_name" required
+                   value="{{if and .Data .Data.DisplayName}}{{.Data.DisplayName}}{{end}}"
+                   placeholder="John Doe"
+                   class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                          placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+        </div>
+
+        <div>
+            <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <input type="password" id="password" name="password" required minlength="8"
+                   placeholder="Minimum 8 characters"
+                   class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                          placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+        </div>
+
+        <div>
+            <label for="role" class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+            <select id="role" name="role"
+                    class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                           focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+                <option value="editor" {{if and .Data .Data.Role (eq .Data.Role "editor")}}selected{{end}}>Editor</option>
+                <option value="author" {{if and .Data .Data.Role (eq .Data.Role "author")}}selected{{end}}>Author</option>
+                <option value="admin" {{if and .Data .Data.Role (eq .Data.Role "admin")}}selected{{end}}>Admin</option>
+            </select>
+            <p class="mt-1 text-xs text-gray-500">
+                <strong>Admin</strong> — full access including user management.
+                <strong>Editor</strong> — can manage all content.
+                <strong>Author</strong> — can create and edit own content.
+            </p>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-2">
+            <a href="/admin/users"
+               hx-get="/admin/users"
+               hx-target="#main-content"
+               hx-push-url="true"
+               class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 border border-gray-300 shadow-sm transition-colors">
+                Cancel
+            </a>
+            <button type="submit"
+                    class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition-colors">
+                Create User
+            </button>
+        </div>
+    </form>
+</div>
+{{end}}
