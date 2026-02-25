@@ -1,0 +1,337 @@
+{{define "title"}}AI Template Builder{{end}}
+
+{{define "content"}}
+<div x-data="aiTemplateBuilder()" class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-xl font-semibold text-gray-900">AI Template Builder</h2>
+            <p class="mt-1 text-sm text-gray-500">Describe the template you want and AI will generate it.</p>
+        </div>
+        <a href="/admin/templates"
+           hx-get="/admin/templates"
+           hx-target="#main-content"
+           hx-push-url="true"
+           class="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 border border-gray-300 shadow-sm transition-colors">
+            Back to Templates
+        </a>
+    </div>
+
+    <div class="flex gap-6">
+        <!-- Left column: Chat + Code -->
+        <div class="flex-1 min-w-0 space-y-4">
+
+            <!-- Template type selector -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Template Type</label>
+                <div class="flex gap-2">
+                    <template x-for="t in templateTypes" :key="t.value">
+                        <button type="button"
+                                @click="templateType = t.value"
+                                :class="templateType === t.value
+                                    ? 'bg-indigo-600 text-white border-indigo-600'
+                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+                                class="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors"
+                                x-text="t.label">
+                        </button>
+                    </template>
+                </div>
+                <p class="mt-2 text-xs text-gray-400" x-text="templateTypes.find(t => t.value === templateType)?.help"></p>
+            </div>
+
+            <!-- Chat messages -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div id="chat-messages" class="p-4 space-y-4 max-h-[400px] overflow-y-auto" x-ref="chatArea">
+
+                    <!-- Welcome message -->
+                    <template x-if="messages.length === 0">
+                        <div class="text-center py-8">
+                            <svg class="mx-auto h-12 w-12 text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+                            </svg>
+                            <p class="text-sm text-gray-500">Describe the template you want to build.</p>
+                            <p class="text-xs text-gray-400 mt-1">e.g., "A modern blog post page with a hero section, large title, and clean body text"</p>
+                        </div>
+                    </template>
+
+                    <!-- Message list -->
+                    <template x-for="(msg, idx) in messages" :key="idx">
+                        <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+                            <div :class="msg.role === 'user'
+                                    ? 'bg-indigo-600 text-white rounded-lg rounded-br-sm px-4 py-2 max-w-[80%]'
+                                    : 'bg-gray-100 text-gray-800 rounded-lg rounded-bl-sm px-4 py-2 max-w-[80%]'">
+                                <p class="text-sm whitespace-pre-wrap" x-text="msg.content"></p>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Loading indicator -->
+                    <template x-if="loading">
+                        <div class="flex justify-start">
+                            <div class="bg-gray-100 rounded-lg rounded-bl-sm px-4 py-3">
+                                <div class="flex items-center gap-2">
+                                    <svg class="animate-spin h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                    </svg>
+                                    <span class="text-sm text-gray-500">Generating template...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Chat input -->
+                <div class="border-t border-gray-200 p-4">
+                    <form @submit.prevent="sendMessage()" class="flex gap-2">
+                        <input type="text" x-model="prompt" :disabled="loading"
+                               class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                                      placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none
+                                      disabled:bg-gray-50 disabled:text-gray-400"
+                               placeholder="Describe your template or request changes...">
+                        <button type="submit" :disabled="loading || !prompt.trim()"
+                                class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500
+                                       transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            Send
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Generated code viewer -->
+            <template x-if="generatedHTML">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+                        <h3 class="text-sm font-medium text-gray-700">Generated Template</h3>
+                        <div class="flex gap-2">
+                            <button type="button" @click="copyCode()"
+                                    class="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-200 hover:bg-gray-100 transition-colors">
+                                <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-4 max-h-[400px] overflow-auto">
+                        <pre class="text-xs font-mono text-gray-800 whitespace-pre-wrap" x-text="generatedHTML"></pre>
+                    </div>
+
+                    <!-- Validation status -->
+                    <div class="px-4 py-2 border-t border-gray-200" :class="validationOk ? 'bg-green-50' : 'bg-red-50'">
+                        <template x-if="validationOk">
+                            <p class="text-xs text-green-700 flex items-center gap-1">
+                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                </svg>
+                                Template compiles successfully as a Go template.
+                            </p>
+                        </template>
+                        <template x-if="!validationOk">
+                            <p class="text-xs text-red-700" x-text="'Template error: ' + validationError"></p>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Right column: Preview + Save -->
+        <div class="w-96 flex-shrink-0 space-y-4">
+
+            <!-- Live Preview -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+                    <h3 class="text-sm font-medium text-gray-700">Live Preview</h3>
+                    <button type="button" @click="refreshPreview()" :disabled="!generatedHTML"
+                            class="text-xs text-indigo-600 hover:text-indigo-800 disabled:text-gray-400 disabled:cursor-not-allowed">
+                        Refresh
+                    </button>
+                </div>
+                <div id="preview-container" class="min-h-[300px]">
+                    <template x-if="!previewHTML">
+                        <div class="flex items-center justify-center h-[300px] text-sm text-gray-400">
+                            Preview appears after AI generates a template.
+                        </div>
+                    </template>
+                    <template x-if="previewHTML">
+                        <iframe :srcdoc="previewHTML" class="w-full h-[500px] border-0"></iframe>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Save as Template -->
+            <template x-if="generatedHTML && validationOk">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-4">
+                    <h3 class="text-sm font-semibold text-gray-900">Save as Template</h3>
+
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Template Name</label>
+                        <input type="text" x-model="saveName"
+                               class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                                      placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                               placeholder="e.g., Modern Blog Page">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Type</label>
+                        <p class="text-sm text-gray-600" x-text="templateTypes.find(t => t.value === templateType)?.label"></p>
+                    </div>
+
+                    <button type="button" @click="saveTemplate()" :disabled="!saveName.trim() || saving"
+                            class="w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500
+                                   transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span x-text="saving ? 'Saving...' : 'Save Template'"></span>
+                    </button>
+
+                    <template x-if="saveSuccess">
+                        <p class="text-xs text-green-700 bg-green-50 rounded p-2">Template saved successfully! Go to the templates list to activate it.</p>
+                    </template>
+                    <template x-if="saveError">
+                        <p class="text-xs text-red-700 bg-red-50 rounded p-2" x-text="saveError"></p>
+                    </template>
+                </div>
+            </template>
+        </div>
+    </div>
+</div>
+
+<script>
+function aiTemplateBuilder() {
+    return {
+        templateType: 'page',
+        templateTypes: [
+            { value: 'header', label: 'Header', help: 'Site header/navigation bar. Variables: {{.SiteName}}, {{.Year}}' },
+            { value: 'footer', label: 'Footer', help: 'Site footer. Variables: {{.SiteName}}, {{.Year}}' },
+            { value: 'page', label: 'Page', help: 'Full page layout. Variables: {{.Title}}, {{.Body}}, {{.Header}}, {{.Footer}}, {{.Excerpt}}, {{.MetaDescription}}, {{.SiteName}}, {{.Year}}, {{.Slug}}, {{.PublishedAt}}' },
+            { value: 'article_loop', label: 'Article Loop', help: 'Post listing page. Variables: {{.Title}}, {{.Header}}, {{.Footer}}, {{.SiteName}}, {{.Year}}, {{range .Posts}}{{.Title}}, {{.Slug}}, {{.Excerpt}}, {{.PublishedAt}}{{end}}' }
+        ],
+        prompt: '',
+        messages: [],
+        loading: false,
+        generatedHTML: '',
+        validationOk: false,
+        validationError: '',
+        previewHTML: '',
+        copied: false,
+        saveName: '',
+        saving: false,
+        saveSuccess: false,
+        saveError: '',
+
+        async sendMessage() {
+            const text = this.prompt.trim();
+            if (!text || this.loading) return;
+
+            this.messages.push({ role: 'user', content: text });
+            this.prompt = '';
+            this.loading = true;
+            this.saveSuccess = false;
+            this.saveError = '';
+
+            this.$nextTick(() => {
+                this.$refs.chatArea.scrollTop = this.$refs.chatArea.scrollHeight;
+            });
+
+            try {
+                const csrfToken = document.querySelector('[hx-headers]')?.getAttribute('hx-headers');
+                const csrf = csrfToken ? JSON.parse(csrfToken)['X-CSRF-Token'] : '';
+
+                // Build conversation context for the AI
+                const chatHistory = this.messages.map(m => m.role + ': ' + m.content).join('\n\n');
+
+                const formData = new FormData();
+                formData.append('prompt', text);
+                formData.append('template_type', this.templateType);
+                formData.append('chat_history', chatHistory);
+                if (this.generatedHTML) {
+                    formData.append('current_html', this.generatedHTML);
+                }
+
+                const resp = await fetch('/admin/ai/generate-template', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrf },
+                    body: formData
+                });
+
+                const data = await resp.json();
+
+                if (data.error) {
+                    this.messages.push({ role: 'assistant', content: 'Error: ' + data.error });
+                } else {
+                    this.messages.push({ role: 'assistant', content: data.message || 'Template generated. Check the code and preview below.' });
+                    this.generatedHTML = data.html;
+                    this.validationOk = data.valid;
+                    this.validationError = data.validation_error || '';
+                    this.previewHTML = data.preview || '';
+                }
+            } catch (err) {
+                this.messages.push({ role: 'assistant', content: 'Network error: ' + err.message });
+            } finally {
+                this.loading = false;
+                this.$nextTick(() => {
+                    this.$refs.chatArea.scrollTop = this.$refs.chatArea.scrollHeight;
+                });
+            }
+        },
+
+        async refreshPreview() {
+            if (!this.generatedHTML) return;
+            try {
+                const csrfToken = document.querySelector('[hx-headers]')?.getAttribute('hx-headers');
+                const csrf = csrfToken ? JSON.parse(csrfToken)['X-CSRF-Token'] : '';
+
+                const formData = new FormData();
+                formData.append('html_content', this.generatedHTML);
+
+                const resp = await fetch('/admin/templates/preview', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrf },
+                    body: formData
+                });
+                this.previewHTML = await resp.text();
+            } catch (err) {
+                console.error('Preview failed:', err);
+            }
+        },
+
+        copyCode() {
+            navigator.clipboard.writeText(this.generatedHTML);
+            this.copied = true;
+            setTimeout(() => this.copied = false, 2000);
+        },
+
+        async saveTemplate() {
+            if (!this.saveName.trim() || !this.generatedHTML || this.saving) return;
+            this.saving = true;
+            this.saveSuccess = false;
+            this.saveError = '';
+
+            try {
+                const csrfToken = document.querySelector('[hx-headers]')?.getAttribute('hx-headers');
+                const csrf = csrfToken ? JSON.parse(csrfToken)['X-CSRF-Token'] : '';
+
+                const formData = new FormData();
+                formData.append('name', this.saveName);
+                formData.append('type', this.templateType);
+                formData.append('html_content', this.generatedHTML);
+                formData.append('csrf_token', csrf);
+
+                const resp = await fetch('/admin/ai/save-template', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrf },
+                    body: formData
+                });
+
+                const data = await resp.json();
+                if (data.error) {
+                    this.saveError = data.error;
+                } else {
+                    this.saveSuccess = true;
+                    this.saveName = '';
+                }
+            } catch (err) {
+                this.saveError = 'Network error: ' + err.message;
+            } finally {
+                this.saving = false;
+            }
+        }
+    };
+}
+</script>
+{{end}}

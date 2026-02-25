@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"strings"
 	"testing"
+
+	"smartpress/internal/engine"
 )
 
 func TestParseNumberedList(t *testing.T) {
@@ -163,6 +166,108 @@ func TestTruncate(t *testing.T) {
 	}
 	if got := truncate("hello world", 5); got != "hello..." {
 		t.Errorf("truncated: got %q, want %q", got, "hello...")
+	}
+}
+
+func TestExtractHTMLFromResponse(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "plain html",
+			input: "<div>Hello</div>",
+			want:  "<div>Hello</div>",
+		},
+		{
+			name:  "html code fence",
+			input: "```html\n<div>Hello</div>\n```",
+			want:  "<div>Hello</div>",
+		},
+		{
+			name:  "generic code fence",
+			input: "```\n<div>Hello</div>\n```",
+			want:  "<div>Hello</div>",
+		},
+		{
+			name:  "with surrounding whitespace",
+			input: "\n\n<div>Hello</div>\n\n",
+			want:  "<div>Hello</div>",
+		},
+		{
+			name:  "code fence with extra text after closing",
+			input: "```html\n<header>Nav</header>\n```\n",
+			want:  "<header>Nav</header>",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractHTMLFromResponse(tt.input)
+			if got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuildTemplateSystemPrompt(t *testing.T) {
+	// Verify each template type produces a prompt containing the right variables.
+	tests := []struct {
+		tmplType string
+		contains []string
+	}{
+		{"header", []string{"SiteName", "Year", "HEADER"}},
+		{"footer", []string{"SiteName", "Year", "FOOTER"}},
+		{"page", []string{"Title", "Body", "Header", "Footer", "MetaDescription", "PAGE"}},
+		{"article_loop", []string{"range .Posts", "Title", "Slug", "Excerpt", "ARTICLE LOOP"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.tmplType, func(t *testing.T) {
+			prompt := buildTemplateSystemPrompt(tt.tmplType)
+			for _, s := range tt.contains {
+				if !containsStr(prompt, s) {
+					t.Errorf("prompt for %q should contain %q", tt.tmplType, s)
+				}
+			}
+		})
+	}
+}
+
+func containsStr(haystack, needle string) bool {
+	return len(haystack) > 0 && len(needle) > 0 && strings.Contains(haystack, needle)
+}
+
+func TestBuildPreviewData(t *testing.T) {
+	// Page preview should return PageData.
+	pageData := buildPreviewData("page")
+	if pd, ok := pageData.(engine.PageData); ok {
+		if pd.SiteName != "SmartPress" {
+			t.Errorf("page SiteName: got %q", pd.SiteName)
+		}
+		if pd.Title == "" {
+			t.Error("page Title should not be empty")
+		}
+	} else {
+		t.Errorf("page preview should return engine.PageData, got %T", pageData)
+	}
+
+	// Article loop preview should return ListData with posts.
+	listData := buildPreviewData("article_loop")
+	if ld, ok := listData.(engine.ListData); ok {
+		if len(ld.Posts) == 0 {
+			t.Error("article_loop should have sample posts")
+		}
+	} else {
+		t.Errorf("article_loop preview should return engine.ListData, got %T", listData)
+	}
+
+	// Header/footer should return a struct with SiteName and Year.
+	headerData := buildPreviewData("header")
+	if headerData == nil {
+		t.Error("header preview should not be nil")
 	}
 }
 

@@ -12,8 +12,8 @@
 - [x] HTMX-driven responses (HTML fragment swaps)
 
 ## Step 10: AI Theme Builder
-- [ ] Chat UI in admin "AI Design" section
-- [ ] Prompt → LLM generates HTML+TailwindCSS with Go template vars
-- [ ] Validation: parse HTML, compile as Go template, catch errors
-- [ ] Live preview with dummy data
-- [ ] Save to DB + cache invalidation
+- [x] Chat UI in admin "AI Design" section
+- [x] Prompt → LLM generates HTML+TailwindCSS with Go template vars
+- [x] Validation: parse HTML, compile as Go template, catch errors
+- [x] Live preview with dummy data
+- [x] Save to DB + cache invalidation

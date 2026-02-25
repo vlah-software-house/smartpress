@@ -75,6 +75,7 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 			// Templates (AI Design)
 			r.Route("/templates", func(r chi.Router) {
 				r.Get("/", admin.TemplatesList)
+				r.Get("/ai", admin.AITemplatePage)
 				r.Get("/new", admin.TemplateNew)
 				r.Post("/", admin.TemplateCreate)
 				r.Post("/preview", admin.TemplatePreview)
@@ -91,13 +92,15 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 				r.Post("/{id}/reset-2fa", admin.UserResetTwoFA)
 			})
 
-			// AI Assistant (content editor helpers)
+			// AI Assistant (content editor helpers + template builder)
 			r.Route("/ai", func(r chi.Router) {
 				r.Post("/suggest-title", admin.AISuggestTitle)
 				r.Post("/generate-excerpt", admin.AIGenerateExcerpt)
 				r.Post("/seo-metadata", admin.AISEOMetadata)
 				r.Post("/rewrite", admin.AIRewrite)
 				r.Post("/extract-tags", admin.AIExtractTags)
+				r.Post("/generate-template", admin.AITemplateGenerate)
+				r.Post("/save-template", admin.AITemplateSave)
 			})
 
 			// Settings

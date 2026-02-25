@@ -128,11 +128,13 @@ func main() {
 	r := router.New(sessionStore, adminHandlers, authHandlers, publicHandlers)
 
 	// Create the HTTP server with sensible timeouts.
+	// WriteTimeout must accommodate AI endpoints that wait on LLM responses
+	// (typically 10-30s, up to 60s for complex prompts).
 	srv := &http.Server{
 		Addr:         cfg.Addr(),
 		Handler:      r,
 		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		WriteTimeout: 90 * time.Second,
 		IdleTimeout:  120 * time.Second,
 	}
 
