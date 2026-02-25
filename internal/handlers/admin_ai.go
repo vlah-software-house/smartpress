@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"yaaicms/internal/ai"
@@ -823,8 +824,10 @@ func (a *Admin) AITemplateGenerate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build the system prompt with type-specific template variable documentation.
-	systemPrompt := buildTemplateSystemPrompt(tmplType)
+	// Build the system prompt with type-specific variable documentation and
+	// the active design brief (if any) for visual consistency.
+	designBrief := a.getActiveDesignBrief()
+	systemPrompt := buildTemplateSystemPrompt(tmplType, designBrief)
 
 	// Build the user prompt with context.
 	var userPrompt strings.Builder
@@ -930,6 +933,274 @@ func (a *Admin) AITemplateSave(w http.ResponseWriter, r *http.Request) {
 
 	a.cacheLog.Log("template", created.ID, "create")
 	writeJSON(w, http.StatusOK, templateSaveResponse{ID: created.ID.String()})
+}
+
+// --- Design Theme Endpoints ---
+
+// themeResponse is the JSON representation of a design theme.
+type themeResponse struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	StylePrompt string `json:"style_prompt"`
+	IsActive    bool   `json:"is_active"`
+}
+
+// AIThemeList returns all design themes as JSON.
+func (a *Admin) AIThemeList(w http.ResponseWriter, r *http.Request) {
+	themes, err := a.themeStore.List()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to list themes."})
+		return
+	}
+
+	var items []themeResponse
+	for _, t := range themes {
+		items = append(items, themeResponse{
+			ID:          t.ID.String(),
+			Name:        t.Name,
+			StylePrompt: t.StylePrompt,
+			IsActive:    t.IsActive,
+		})
+	}
+	writeJSON(w, http.StatusOK, items)
+}
+
+// AIThemeCreate creates a new design theme.
+func (a *Admin) AIThemeCreate(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(r.FormValue("name"))
+	stylePrompt := strings.TrimSpace(r.FormValue("style_prompt"))
+
+	if name == "" || stylePrompt == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Name and style prompt are required."})
+		return
+	}
+
+	theme := &models.DesignTheme{Name: name, StylePrompt: stylePrompt}
+	created, err := a.themeStore.Create(theme)
+	if err != nil {
+		slog.Error("create design theme failed", "error", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to create theme."})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, themeResponse{
+		ID:          created.ID.String(),
+		Name:        created.Name,
+		StylePrompt: created.StylePrompt,
+		IsActive:    created.IsActive,
+	})
+}
+
+// AIThemeUpdate updates an existing design theme's name and style prompt.
+func (a *Admin) AIThemeUpdate(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid theme ID."})
+		return
+	}
+
+	name := strings.TrimSpace(r.FormValue("name"))
+	stylePrompt := strings.TrimSpace(r.FormValue("style_prompt"))
+
+	if name == "" || stylePrompt == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Name and style prompt are required."})
+		return
+	}
+
+	if err := a.themeStore.Update(id, name, stylePrompt); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to update theme."})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// AIThemeActivate sets a theme as the active design brief.
+func (a *Admin) AIThemeActivate(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid theme ID."})
+		return
+	}
+
+	if err := a.themeStore.Activate(id); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to activate theme."})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// AIThemeDeactivate disables the active theme without activating another.
+func (a *Admin) AIThemeDeactivate(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid theme ID."})
+		return
+	}
+
+	if err := a.themeStore.Deactivate(id); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to deactivate theme."})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// AIThemeDelete removes a design theme (cannot delete active).
+func (a *Admin) AIThemeDelete(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid theme ID."})
+		return
+	}
+
+	if err := a.themeStore.Delete(id); err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+// AIActiveTheme returns the currently active design theme (or null).
+func (a *Admin) AIActiveTheme(w http.ResponseWriter, r *http.Request) {
+	theme, err := a.themeStore.FindActive()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "Failed to fetch active theme."})
+		return
+	}
+	if theme == nil {
+		writeJSON(w, http.StatusOK, nil)
+		return
+	}
+	writeJSON(w, http.StatusOK, themeResponse{
+		ID:          theme.ID.String(),
+		Name:        theme.Name,
+		StylePrompt: theme.StylePrompt,
+		IsActive:    true,
+	})
+}
+
+// getActiveDesignBrief fetches the active theme's style prompt, returning
+// an empty string if no theme is active or the lookup fails.
+func (a *Admin) getActiveDesignBrief() string {
+	theme, err := a.themeStore.FindActive()
+	if err != nil || theme == nil {
+		return ""
+	}
+	return theme.StylePrompt
+}
+
+// --- Restyle All ---
+
+// restylePreviewRequest holds the 4 template HTMLs for a combined preview.
+type restylePreviewRequest struct {
+	HeaderHTML      string `json:"header_html"`
+	FooterHTML      string `json:"footer_html"`
+	PageHTML        string `json:"page_html"`
+	ArticleLoopHTML string `json:"article_loop_html"`
+	ContentID       string `json:"content_id"`
+}
+
+// restylePreviewResponse returns the rendered combined previews.
+type restylePreviewResponse struct {
+	PagePreview        string `json:"page_preview"`
+	ArticleLoopPreview string `json:"article_loop_preview"`
+	Error              string `json:"error,omitempty"`
+}
+
+// AIRestylePreview renders a combined preview of all 4 templates together.
+// It compiles the header and footer templates, renders them, then injects
+// their output into the page and article_loop templates for a unified view.
+func (a *Admin) AIRestylePreview(w http.ResponseWriter, r *http.Request) {
+	var req restylePreviewRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, restylePreviewResponse{Error: "Invalid request."})
+		return
+	}
+
+	// Render header and footer templates to get their HTML output.
+	headerData := struct {
+		SiteName string
+		Year     int
+	}{SiteName: "YaaiCMS", Year: time.Now().Year()}
+
+	renderedHeader := ""
+	if req.HeaderHTML != "" {
+		result, err := a.engine.ValidateAndRender(req.HeaderHTML, headerData)
+		if err == nil {
+			renderedHeader = string(result)
+		}
+	}
+
+	renderedFooter := ""
+	if req.FooterHTML != "" {
+		result, err := a.engine.ValidateAndRender(req.FooterHTML, headerData)
+		if err == nil {
+			renderedFooter = string(result)
+		}
+	}
+
+	resp := restylePreviewResponse{}
+
+	// Render page preview with the generated header/footer.
+	if req.PageHTML != "" {
+		var pageData any
+		if req.ContentID != "" {
+			pageData = a.buildRealPreviewData("page", req.ContentID)
+		}
+		if pageData == nil {
+			pageData = buildPreviewData("page")
+		}
+
+		// Inject the rendered header/footer into the preview data.
+		if pd, ok := pageData.(engine.PageData); ok {
+			if renderedHeader != "" {
+				pd.Header = template.HTML(renderedHeader)
+			}
+			if renderedFooter != "" {
+				pd.Footer = template.HTML(renderedFooter)
+			}
+			pageData = pd
+		}
+
+		result, err := a.engine.ValidateAndRender(req.PageHTML, pageData)
+		if err == nil {
+			resp.PagePreview = string(result)
+		}
+	}
+
+	// Render article loop preview with the generated header/footer.
+	if req.ArticleLoopHTML != "" {
+		var loopData any
+		loopData = a.buildRealPreviewData("article_loop", "")
+		if loopData == nil {
+			loopData = buildPreviewData("article_loop")
+		}
+
+		// Inject the rendered header/footer.
+		if ld, ok := loopData.(engine.ListData); ok {
+			if renderedHeader != "" {
+				ld.Header = template.HTML(renderedHeader)
+			}
+			if renderedFooter != "" {
+				ld.Footer = template.HTML(renderedFooter)
+			}
+			loopData = ld
+		}
+
+		result, err := a.engine.ValidateAndRender(req.ArticleLoopHTML, loopData)
+		if err == nil {
+			resp.ArticleLoopPreview = string(result)
+		}
+	}
+
+	writeJSON(w, http.StatusOK, resp)
 }
 
 // --- Preview Content Selection ---
@@ -1178,7 +1449,7 @@ func buildSrcsetForPreview(storageClient *storage.Client, variants []models.Medi
 // variables for the given template type. Each variable includes a detailed
 // description of its content, purpose, and recommended usage patterns so
 // the AI can make informed design decisions.
-func buildTemplateSystemPrompt(tmplType string) string {
+func buildTemplateSystemPrompt(tmplType string, designBrief ...string) string {
 	base := `You are an expert web designer who creates beautiful, modern HTML templates using TailwindCSS.
 You generate complete, production-ready HTML+TailwindCSS templates for a CMS called YaaiCMS.
 
@@ -1388,7 +1659,22 @@ DESIGN GUIDELINES:
 		vars = "\nGenerate a generic HTML template using TailwindCSS."
 	}
 
-	return base + "\n" + vars
+	prompt := base + "\n" + vars
+
+	// Inject the design brief if one is active. This ensures all templates
+	// share the same visual language (colors, typography, spacing, mood).
+	if len(designBrief) > 0 && designBrief[0] != "" {
+		prompt += `
+
+DESIGN BRIEF — Follow this style guide for visual consistency across all templates:
+` + designBrief[0] + `
+
+You MUST follow the design brief above. Match the colors, typography, spacing, and
+visual mood described. All templates (header, footer, page, article_loop) should
+feel like they belong to the same website.`
+	}
+
+	return prompt
 }
 
 // buildPreviewData creates dummy data appropriate for the template type,

@@ -149,6 +149,16 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 				r.Post("/generate-template", admin.AITemplateGenerate)
 				r.Post("/save-template", admin.AITemplateSave)
 				r.Get("/preview-content", admin.AIPreviewContentList)
+
+				// Design themes (style briefs for visual consistency)
+				r.Get("/themes", admin.AIThemeList)
+				r.Post("/themes", admin.AIThemeCreate)
+				r.Get("/active-theme", admin.AIActiveTheme)
+				r.Put("/themes/{id}", admin.AIThemeUpdate)
+				r.Post("/themes/{id}/activate", admin.AIThemeActivate)
+				r.Post("/themes/{id}/deactivate", admin.AIThemeDeactivate)
+				r.Delete("/themes/{id}", admin.AIThemeDelete)
+				r.Post("/restyle-preview", admin.AIRestylePreview)
 			})
 
 			// Settings
