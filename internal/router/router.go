@@ -112,6 +112,7 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 			// Media Library
 			r.Route("/media", func(r chi.Router) {
 				r.Get("/", admin.MediaLibrary)
+				r.Get("/json", admin.MediaListJSON)
 				r.Post("/", admin.MediaUpload)
 				r.Delete("/{id}", admin.MediaDelete)
 				r.Get("/{id}/url", admin.MediaServe)

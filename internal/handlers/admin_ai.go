@@ -52,9 +52,10 @@ func (a *Admin) AIGenerateContent(w http.ResponseWriter, r *http.Request) {
 	systemPrompt := fmt.Sprintf(`You are an expert content writer for a CMS. Write a complete %s based on the user's description.
 
 Rules:
-- Output ONLY the article body as clean HTML (use <p>, <h2>, <h3>, <ul>, <ol>, <li>, <strong>, <em>, <blockquote> tags).
-- Do NOT include a top-level <h1> tag (the CMS adds the title separately).
-- Do NOT wrap the output in markdown code fences.
+- Output ONLY the article body as clean Markdown.
+- Use ## and ### for subheadings (not # — the CMS adds the title separately).
+- Use standard Markdown syntax: **bold**, *italic*, > blockquotes, - lists, 1. numbered lists, [links](url), etc.
+- Do NOT wrap the output in code fences.
 - Write 3-6 well-structured paragraphs with subheadings where appropriate.
 - Make the content informative, engaging, and ready to publish.`, contentType)
 
@@ -71,12 +72,13 @@ Rules:
 		`<div class="space-y-3">
 			<div class="text-xs text-gray-700 bg-gray-50 rounded p-3 max-h-48 overflow-y-auto prose prose-sm">%s</div>
 			<button type="button"
-				onclick="document.getElementById('body').value = %s; document.getElementById('body').dispatchEvent(new Event('input'))"
+				onclick="if(window._markdownEditor){window._markdownEditor.value(%s)}else{document.getElementById('body').value=%s}; document.getElementById('body').dispatchEvent(new Event('input'))"
 				class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition-colors">
 				Apply to Content
 			</button>
 		</div>`,
 		result,
+		quoteJSString(result),
 		quoteJSString(result),
 	)
 
@@ -425,7 +427,7 @@ func (a *Admin) AIRewrite(w http.ResponseWriter, r *http.Request) {
 
 	systemPrompt := fmt.Sprintf(`You are a professional content editor. Rewrite the given content
 in a %s tone. Preserve the key information and structure but adjust the language and style.
-If the content contains HTML tags, preserve them. Output ONLY the rewritten content, nothing else.`, toneDesc)
+The content uses Markdown formatting — preserve all Markdown syntax. Output ONLY the rewritten content, nothing else.`, toneDesc)
 
 	result, err := a.aiRegistry.Generate(r.Context(), systemPrompt, prompt)
 	if err != nil {
@@ -439,12 +441,13 @@ If the content contains HTML tags, preserve them. Output ONLY the rewritten cont
 	fragment := fmt.Sprintf(
 		`<div class="space-y-2">
 			<div class="text-xs text-gray-700 bg-gray-50 rounded p-2 max-h-48 overflow-y-auto whitespace-pre-wrap">%s</div>
-			<button type="button" onclick="document.getElementById('body').value = %s"
+			<button type="button" onclick="if(window._markdownEditor){window._markdownEditor.value(%s)}else{document.getElementById('body').value=%s}"
 				class="w-full rounded-md bg-indigo-50 border border-indigo-200 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition-colors">
 				Apply to Content
 			</button>
 		</div>`,
 		html.EscapeString(result),
+		quoteJSString(result),
 		quoteJSString(result),
 	)
 

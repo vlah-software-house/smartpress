@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"time"
 
+	"yaaicms/internal/markdown"
 	"yaaicms/internal/models"
 	"yaaicms/internal/store"
 )
@@ -111,10 +112,21 @@ func (e *Engine) RenderPage(content *models.Content, featuredImageURL string) ([
 		publishedAt = content.PublishedAt.Format("January 2, 2006")
 	}
 
+	// Convert Markdown body to HTML if needed; raw HTML is passed through unchanged.
+	bodyHTML := content.Body
+	if content.BodyFormat == models.BodyFormatMarkdown {
+		rendered, err := markdown.ToHTML(content.Body)
+		if err != nil {
+			slog.Warn("markdown conversion failed, using raw body", "error", err)
+		} else {
+			bodyHTML = rendered
+		}
+	}
+
 	data := PageData{
 		SiteName:         "YaaiCMS",
 		Title:            content.Title,
-		Body:             template.HTML(content.Body),
+		Body:             template.HTML(bodyHTML),
 		FeaturedImageURL: featuredImageURL,
 		Slug:             content.Slug,
 		PublishedAt:      publishedAt,

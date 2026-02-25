@@ -26,6 +26,14 @@ const (
 	ContentStatusPublished ContentStatus = "published"
 )
 
+// BodyFormat indicates whether the body field contains raw HTML or Markdown.
+type BodyFormat string
+
+const (
+	BodyFormatHTML     BodyFormat = "html"
+	BodyFormatMarkdown BodyFormat = "markdown"
+)
+
 // Content represents a post or page in the CMS. Posts and pages share the
 // same table, differentiated by the Type field.
 type Content struct {
@@ -34,6 +42,7 @@ type Content struct {
 	Title           string        `json:"title"`
 	Slug            string        `json:"slug"`
 	Body            string        `json:"body"`
+	BodyFormat      BodyFormat    `json:"body_format"`
 	Excerpt         *string       `json:"excerpt,omitempty"`
 	Status          ContentStatus `json:"status"`
 	MetaDescription *string       `json:"meta_description,omitempty"`
@@ -58,6 +67,7 @@ type ContentRevision struct {
 	Title           string     `json:"title"`
 	Slug            string     `json:"slug"`
 	Body            string     `json:"body"`
+	BodyFormat      BodyFormat `json:"body_format"`
 	Excerpt         *string    `json:"excerpt,omitempty"`
 	Status          string     `json:"status"`
 	MetaDescription *string    `json:"meta_description,omitempty"`

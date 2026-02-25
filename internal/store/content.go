@@ -26,7 +26,7 @@ func NewContentStore(db *sql.DB) *ContentStore {
 }
 
 // contentColumns lists the columns selected in content queries.
-const contentColumns = `id, type, title, slug, body, excerpt, status,
+const contentColumns = `id, type, title, slug, body, body_format, excerpt, status,
 	meta_description, meta_keywords, featured_image_id, author_id,
 	published_at, created_at, updated_at`
 
@@ -34,9 +34,9 @@ const contentColumns = `id, type, title, slug, body, excerpt, status,
 func scanContent(scanner interface{ Scan(...any) error }) (*models.Content, error) {
 	var c models.Content
 	err := scanner.Scan(
-		&c.ID, &c.Type, &c.Title, &c.Slug, &c.Body, &c.Excerpt,
-		&c.Status, &c.MetaDescription, &c.MetaKeywords, &c.FeaturedImageID,
-		&c.AuthorID, &c.PublishedAt, &c.CreatedAt, &c.UpdatedAt,
+		&c.ID, &c.Type, &c.Title, &c.Slug, &c.Body, &c.BodyFormat,
+		&c.Excerpt, &c.Status, &c.MetaDescription, &c.MetaKeywords,
+		&c.FeaturedImageID, &c.AuthorID, &c.PublishedAt, &c.CreatedAt, &c.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -106,12 +106,12 @@ func (s *ContentStore) Create(c *models.Content) (*models.Content, error) {
 	}
 
 	row := s.db.QueryRow(`
-		INSERT INTO content (type, title, slug, body, excerpt, status,
+		INSERT INTO content (type, title, slug, body, body_format, excerpt, status,
 		                     meta_description, meta_keywords, featured_image_id,
 		                     author_id, published_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING `+contentColumns,
-		c.Type, c.Title, c.Slug, c.Body, c.Excerpt, c.Status,
+		c.Type, c.Title, c.Slug, c.Body, c.BodyFormat, c.Excerpt, c.Status,
 		c.MetaDescription, c.MetaKeywords, c.FeaturedImageID,
 		c.AuthorID, c.PublishedAt,
 	)
@@ -132,11 +132,11 @@ func (s *ContentStore) Update(c *models.Content) error {
 
 	_, err := s.db.Exec(`
 		UPDATE content SET
-			title = $1, slug = $2, body = $3, excerpt = $4, status = $5,
-			meta_description = $6, meta_keywords = $7, featured_image_id = $8,
-			published_at = $9, updated_at = NOW()
-		WHERE id = $10
-	`, c.Title, c.Slug, c.Body, c.Excerpt, c.Status,
+			title = $1, slug = $2, body = $3, body_format = $4, excerpt = $5,
+			status = $6, meta_description = $7, meta_keywords = $8,
+			featured_image_id = $9, published_at = $10, updated_at = NOW()
+		WHERE id = $11
+	`, c.Title, c.Slug, c.Body, c.BodyFormat, c.Excerpt, c.Status,
 		c.MetaDescription, c.MetaKeywords, c.FeaturedImageID,
 		c.PublishedAt, c.ID,
 	)

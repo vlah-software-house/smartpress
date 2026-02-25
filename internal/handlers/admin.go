@@ -261,13 +261,20 @@ func (a *Admin) createContent(w http.ResponseWriter, r *http.Request, contentTyp
 		status = models.ContentStatusDraft
 	}
 
+	// Determine body format from the form (Markdown editor sets this).
+	bodyFormat := models.BodyFormat(r.FormValue("body_format"))
+	if bodyFormat != models.BodyFormatHTML {
+		bodyFormat = models.BodyFormatMarkdown // default for new content
+	}
+
 	c := &models.Content{
-		Type:     contentType,
-		Title:    title,
-		Slug:     contentSlug,
-		Body:     body,
-		Status:   status,
-		AuthorID: sess.UserID,
+		Type:       contentType,
+		Title:      title,
+		Slug:       contentSlug,
+		Body:       body,
+		BodyFormat: bodyFormat,
+		Status:     status,
+		AuthorID:   sess.UserID,
 	}
 	if excerpt != "" {
 		c.Excerpt = &excerpt
@@ -436,6 +443,14 @@ func (a *Admin) updateContent(w http.ResponseWriter, r *http.Request, section st
 	item.Status = models.ContentStatus(r.FormValue("status"))
 	item.Slug = newSlug
 
+	// Update body format from the form.
+	bodyFormat := models.BodyFormat(r.FormValue("body_format"))
+	if bodyFormat != models.BodyFormatHTML {
+		bodyFormat = models.BodyFormatMarkdown
+	}
+	oldBodyFormat := item.BodyFormat
+	item.BodyFormat = bodyFormat
+
 	if item.Slug == "" {
 		item.Slug = slug.Generate(item.Title)
 	}
@@ -470,6 +485,7 @@ func (a *Admin) updateContent(w http.ResponseWriter, r *http.Request, section st
 		Title:           oldTitle,
 		Slug:            oldSlug,
 		Body:            oldBody,
+		BodyFormat:      oldBodyFormat,
 		Excerpt:         oldExcerpt,
 		Status:          oldStatus,
 		MetaDescription: oldMetaDesc,
@@ -622,6 +638,7 @@ func (a *Admin) RevisionRestore(w http.ResponseWriter, r *http.Request) {
 		Title:           item.Title,
 		Slug:            item.Slug,
 		Body:            item.Body,
+		BodyFormat:      item.BodyFormat,
 		Excerpt:         item.Excerpt,
 		Status:          string(item.Status),
 		MetaDescription: item.MetaDescription,
@@ -639,6 +656,7 @@ func (a *Admin) RevisionRestore(w http.ResponseWriter, r *http.Request) {
 	item.Title = rev.Title
 	item.Slug = rev.Slug
 	item.Body = rev.Body
+	item.BodyFormat = rev.BodyFormat
 	item.Excerpt = rev.Excerpt
 	item.Status = models.ContentStatus(rev.Status)
 	item.MetaDescription = rev.MetaDescription

@@ -20,6 +20,15 @@
     <script defer src="/static/js/alpine.min.js"></script>
     {{end}}
 
+    <!-- EasyMDE Markdown editor -->
+    {{if isDev}}
+    <link rel="stylesheet" href="https://unpkg.com/easymde@2.20.0/dist/easymde.min.css">
+    <script src="https://unpkg.com/easymde@2.20.0/dist/easymde.min.js"></script>
+    {{else}}
+    <link rel="stylesheet" href="/static/css/easymde.min.css">
+    <script src="/static/js/easymde.min.js"></script>
+    {{end}}
+
     <style>
         /* Smooth transitions for HTMX content swaps */
         #main-content { transition: opacity 0.15s ease-in-out; }

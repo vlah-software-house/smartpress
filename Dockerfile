@@ -30,12 +30,16 @@ COPY internal/render/templates/ ./internal/render/templates/
 RUN npx tailwindcss -i ./web/static/css/input.css \
     -o ./web/static/css/admin.css --minify
 
-# Vendor HTMX and AlpineJS for offline serving.
-RUN mkdir -p web/static/js \
+# Vendor HTMX, AlpineJS, and EasyMDE for offline serving.
+RUN mkdir -p web/static/js web/static/css \
     && wget -q -O web/static/js/htmx.min.js \
        "https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" \
     && wget -q -O web/static/js/alpine.min.js \
-       "https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"
+       "https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js" \
+    && wget -q -O web/static/js/easymde.min.js \
+       "https://unpkg.com/easymde@2.20.0/dist/easymde.min.js" \
+    && wget -q -O web/static/css/easymde.min.css \
+       "https://unpkg.com/easymde@2.20.0/dist/easymde.min.css"
 
 # ---------------------------------------------------------------------------
 # Stage 2: Go binary build

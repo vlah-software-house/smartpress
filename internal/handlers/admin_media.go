@@ -107,6 +107,52 @@ func (a *Admin) MediaLibrary(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// MediaListJSON returns media items as JSON for the in-editor media picker.
+func (a *Admin) MediaListJSON(w http.ResponseWriter, r *http.Request) {
+	if a.storageClient == nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{"items": []any{}})
+		return
+	}
+
+	items, _ := a.mediaStore.List(100, 0)
+
+	type item struct {
+		ID       string `json:"id"`
+		URL      string `json:"url"`
+		ThumbURL string `json:"thumb_url"`
+		Filename string `json:"filename"`
+		Type     string `json:"type"`
+		AltText  string `json:"alt_text"`
+	}
+
+	var result []item
+	for _, m := range items {
+		if m.Bucket != a.storageClient.PublicBucket() {
+			continue // Only show public-bucket images in the picker.
+		}
+		if !strings.HasPrefix(m.ContentType, "image/") {
+			continue // Only images for the body picker.
+		}
+		it := item{
+			ID:       m.ID.String(),
+			URL:      a.storageClient.FileURL(m.S3Key),
+			Filename: m.OriginalName,
+			Type:     m.ContentType,
+		}
+		if m.ThumbS3Key != nil {
+			it.ThumbURL = a.storageClient.FileURL(*m.ThumbS3Key)
+		}
+		if m.AltText != nil {
+			it.AltText = *m.AltText
+		}
+		result = append(result, it)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"items": result})
+}
+
 // MediaUpload handles multipart file upload to S3.
 func (a *Admin) MediaUpload(w http.ResponseWriter, r *http.Request) {
 	if a.storageClient == nil {
