@@ -7,9 +7,9 @@
 - [x] Live API tests for all 4 providers
 
 ## Step 9: Content AI Assistant
-- [ ] AI Assistant sidebar/modal in editor
-- [ ] Rewrite tone, generate titles, SEO metadata, tag extraction
-- [ ] HTMX-driven streaming responses
+- [x] AI Assistant sidebar/modal in editor
+- [x] Rewrite tone, generate titles, SEO metadata, tag extraction
+- [x] HTMX-driven responses (HTML fragment swaps)
 
 ## Step 10: AI Theme Builder
 - [ ] Chat UI in admin "AI Design" section

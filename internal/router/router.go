@@ -91,6 +91,15 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 				r.Post("/{id}/reset-2fa", admin.UserResetTwoFA)
 			})
 
+			// AI Assistant (content editor helpers)
+			r.Route("/ai", func(r chi.Router) {
+				r.Post("/suggest-title", admin.AISuggestTitle)
+				r.Post("/generate-excerpt", admin.AIGenerateExcerpt)
+				r.Post("/seo-metadata", admin.AISEOMetadata)
+				r.Post("/rewrite", admin.AIRewrite)
+				r.Post("/extract-tags", admin.AIExtractTags)
+			})
+
 			// Settings
 			r.Get("/settings", admin.SettingsPage)
 		})
