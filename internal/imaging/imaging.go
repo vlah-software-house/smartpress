@@ -83,7 +83,9 @@ func GenerateVariants(original []byte, variants []Variant) ([]ProcessedImage, er
 			targetWidth = origWidth
 		}
 
-		img, err := vips.NewThumbnailFromBuffer(original, targetWidth, 0, vips.InterestingNone)
+		// Height 0 triggers GLib warnings in some libvips versions; use a
+		// very large value so only width constrains the resize.
+		img, err := vips.NewThumbnailFromBuffer(original, targetWidth, targetWidth*10, vips.InterestingNone)
 		if err != nil {
 			return nil, fmt.Errorf("imaging: thumbnail %s (%dpx): %w", v.Name, targetWidth, err)
 		}
