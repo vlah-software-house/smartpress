@@ -131,10 +131,10 @@ func main() {
 
 	// Initialize the AI provider registry with all configured providers.
 	aiRegistry := ai.NewRegistry(cfg.AIProvider, map[string]ai.ProviderConfig{
-		"openai":  {APIKey: cfg.OpenAIKey, Model: cfg.OpenAIModel, BaseURL: cfg.OpenAIBaseURL},
-		"gemini":  {APIKey: cfg.GeminiKey, Model: cfg.GeminiModel, BaseURL: cfg.GeminiBaseURL},
-		"claude":  {APIKey: cfg.ClaudeKey, Model: cfg.ClaudeModel, BaseURL: cfg.ClaudeBaseURL},
-		"mistral": {APIKey: cfg.MistralKey, Model: cfg.MistralModel, BaseURL: cfg.MistralBaseURL},
+		"openai":  {APIKey: cfg.OpenAIKey, Model: cfg.OpenAIModel, ModelLight: cfg.OpenAIModelLight, ModelContent: cfg.OpenAIModelContent, ModelTemplate: cfg.OpenAIModelTemplate, ModelImage: cfg.OpenAIModelImage, BaseURL: cfg.OpenAIBaseURL},
+		"gemini":  {APIKey: cfg.GeminiKey, Model: cfg.GeminiModel, ModelLight: cfg.GeminiModelLight, ModelContent: cfg.GeminiModelContent, ModelTemplate: cfg.GeminiModelTemplate, ModelImage: cfg.GeminiModelImage, BaseURL: cfg.GeminiBaseURL},
+		"claude":  {APIKey: cfg.ClaudeKey, Model: cfg.ClaudeModel, ModelLight: cfg.ClaudeModelLight, ModelContent: cfg.ClaudeModelContent, ModelTemplate: cfg.ClaudeModelTemplate, BaseURL: cfg.ClaudeBaseURL},
+		"mistral": {APIKey: cfg.MistralKey, Model: cfg.MistralModel, ModelLight: cfg.MistralModelLight, ModelContent: cfg.MistralModelContent, ModelTemplate: cfg.MistralModelTemplate, BaseURL: cfg.MistralBaseURL},
 	})
 
 	slog.Info("ai providers initialized",

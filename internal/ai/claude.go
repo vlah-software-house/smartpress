@@ -34,11 +34,19 @@ func newClaude(cfg ProviderConfig) *claudeProvider {
 
 func (p *claudeProvider) Name() string { return "claude" }
 
-// Generate sends a message to the Anthropic Messages API and returns
-// the assistant's response text.
+// Generate sends a message to the Anthropic Messages API using the default model.
 func (p *claudeProvider) Generate(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
+	return p.GenerateWithModel(ctx, "", systemPrompt, userPrompt)
+}
+
+// GenerateWithModel sends a message using a specific model.
+// If model is empty, the provider's default model is used.
+func (p *claudeProvider) GenerateWithModel(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
+	if model == "" {
+		model = p.config.Model
+	}
 	body := claudeRequest{
-		Model:     p.config.Model,
+		Model:     model,
 		MaxTokens: 4096,
 		System:    systemPrompt,
 		Messages: []claudeMessage{

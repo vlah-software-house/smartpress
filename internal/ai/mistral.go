@@ -32,15 +32,25 @@ func newMistral(cfg ProviderConfig) *mistralProvider {
 
 func (p *mistralProvider) Name() string { return "mistral" }
 
-// Generate sends a chat completion request to Mistral's API.
+// Generate sends a chat completion request to Mistral's API using the default model.
 func (p *mistralProvider) Generate(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
+	return p.GenerateWithModel(ctx, "", systemPrompt, userPrompt)
+}
+
+// GenerateWithModel sends a chat completion request using a specific model.
+// If model is empty, the provider's default model is used.
+func (p *mistralProvider) GenerateWithModel(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
+	if model == "" {
+		model = p.inner.config.Model
+	}
+
 	messages := []openAIMessage{
 		{Role: "system", Content: systemPrompt},
 		{Role: "user", Content: userPrompt},
 	}
 
 	body := openAIRequest{
-		Model:    p.inner.config.Model,
+		Model:    model,
 		Messages: messages,
 	}
 

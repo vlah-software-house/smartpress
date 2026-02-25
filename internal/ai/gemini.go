@@ -7,6 +7,7 @@ package ai
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -34,9 +35,18 @@ func newGemini(cfg ProviderConfig) *geminiProvider {
 
 func (p *geminiProvider) Name() string { return "gemini" }
 
-// Generate sends a generateContent request to the Gemini API and
-// returns the generated text.
+// Generate sends a generateContent request to the Gemini API using the default model.
 func (p *geminiProvider) Generate(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
+	return p.GenerateWithModel(ctx, "", systemPrompt, userPrompt)
+}
+
+// GenerateWithModel sends a generateContent request using a specific model.
+// If model is empty, the provider's default model is used.
+func (p *geminiProvider) GenerateWithModel(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
+	if model == "" {
+		model = p.config.Model
+	}
+
 	body := geminiRequest{
 		SystemInstruction: &geminiContent{
 			Parts: []geminiPart{{Text: systemPrompt}},
@@ -52,7 +62,7 @@ func (p *geminiProvider) Generate(ctx context.Context, systemPrompt, userPrompt 
 	}
 
 	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent",
-		p.config.BaseURL, p.config.Model)
+		p.config.BaseURL, model)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
 	if err != nil {
@@ -94,6 +104,69 @@ func (p *geminiProvider) Generate(ctx context.Context, systemPrompt, userPrompt 
 	}
 
 	return "", fmt.Errorf("gemini: no text in response")
+}
+
+// GenerateImage creates an image using Gemini's OpenAI-compatible image
+// generation endpoint. Uses ModelImage from config (e.g., "gemini-2.5-flash-image").
+// Returns PNG image bytes and the content type.
+func (p *geminiProvider) GenerateImage(ctx context.Context, prompt string) ([]byte, string, error) {
+	model := p.config.ModelImage
+	if model == "" {
+		return nil, "", fmt.Errorf("gemini: image generation requires GEMINI_MODEL_IMAGE to be set")
+	}
+
+	body := openAIImageRequest{
+		Model:          model,
+		Prompt:         prompt,
+		N:              1,
+		ResponseFormat: "b64_json",
+	}
+
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return nil, "", fmt.Errorf("gemini image marshal: %w", err)
+	}
+
+	url := p.config.BaseURL + "/v1beta/openai/images/generations"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
+	if err != nil {
+		return nil, "", fmt.Errorf("gemini image request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+p.config.APIKey)
+
+	imgClient := &http.Client{Timeout: 120 * time.Second}
+	resp, err := imgClient.Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("gemini image http: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", fmt.Errorf("gemini image read body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", fmt.Errorf("gemini image API error (status %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var result openAIImageResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, "", fmt.Errorf("gemini image unmarshal: %w", err)
+	}
+
+	if len(result.Data) == 0 {
+		return nil, "", fmt.Errorf("gemini image: no images returned")
+	}
+
+	imgBytes, err := base64.StdEncoding.DecodeString(result.Data[0].B64JSON)
+	if err != nil {
+		return nil, "", fmt.Errorf("gemini image decode base64: %w", err)
+	}
+
+	return imgBytes, "image/png", nil
 }
 
 // --- Gemini API types ---

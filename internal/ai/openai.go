@@ -35,16 +35,25 @@ func newOpenAI(cfg ProviderConfig) *openAIProvider {
 
 func (p *openAIProvider) Name() string { return "openai" }
 
-// Generate sends a chat completion request to OpenAI and returns the
-// assistant's response text.
+// Generate sends a chat completion request to OpenAI using the default model.
 func (p *openAIProvider) Generate(ctx context.Context, systemPrompt, userPrompt string) (string, error) {
+	return p.GenerateWithModel(ctx, "", systemPrompt, userPrompt)
+}
+
+// GenerateWithModel sends a chat completion request using a specific model.
+// If model is empty, the provider's default model is used.
+func (p *openAIProvider) GenerateWithModel(ctx context.Context, model, systemPrompt, userPrompt string) (string, error) {
+	if model == "" {
+		model = p.config.Model
+	}
+
 	messages := []openAIMessage{
 		{Role: "system", Content: systemPrompt},
 		{Role: "user", Content: userPrompt},
 	}
 
 	body := openAIRequest{
-		Model:    p.config.Model,
+		Model:    model,
 		Messages: messages,
 	}
 
@@ -95,11 +104,16 @@ func (p *openAIProvider) doChat(ctx context.Context, body openAIRequest) (string
 	return result.Choices[0].Message.Content, nil
 }
 
-// GenerateImage creates an image using the OpenAI DALL-E 3 API.
-// Returns PNG image bytes and the content type.
+// GenerateImage creates an image using the OpenAI DALL-E API.
+// Returns PNG image bytes and the content type. Uses ModelImage from
+// config (defaults to "dall-e-3").
 func (p *openAIProvider) GenerateImage(ctx context.Context, prompt string) ([]byte, string, error) {
+	model := p.config.ModelImage
+	if model == "" {
+		model = "dall-e-3"
+	}
 	body := openAIImageRequest{
-		Model:          "dall-e-3",
+		Model:          model,
 		Prompt:         prompt,
 		N:              1,
 		Size:           "1792x1024",

@@ -24,7 +24,7 @@ type ImageGenerator interface {
 func (r *Registry) GenerateImage(ctx context.Context, prompt string) ([]byte, string, error) {
 	ig := r.findImageGenerator()
 	if ig == nil {
-		return nil, "", fmt.Errorf("ai: no provider supports image generation (OpenAI key required for DALL-E)")
+		return nil, "", fmt.Errorf("ai: no provider supports image generation (requires OpenAI key for DALL-E or Gemini key with GEMINI_MODEL_IMAGE set)")
 	}
 	return ig.GenerateImage(ctx, prompt)
 }

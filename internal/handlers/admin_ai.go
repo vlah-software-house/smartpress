@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"yaaicms/internal/ai"
 	"yaaicms/internal/engine"
 	"yaaicms/internal/middleware"
 	"yaaicms/internal/models"
@@ -60,7 +61,7 @@ Rules:
 - Write 3-6 well-structured paragraphs with subheadings where appropriate.
 - Make the content informative, engaging, and ready to publish.`, contentType)
 
-	result, err := a.aiRegistry.Generate(r.Context(), systemPrompt, prompt)
+	result, err := a.aiRegistry.GenerateForTask(r.Context(), ai.TaskContent, systemPrompt, prompt)
 	if err != nil {
 		slog.Error("ai generate content failed", "error", err)
 		writeAIError(w, "AI request failed. Check your provider configuration.")
@@ -104,7 +105,7 @@ func (a *Admin) AIGenerateImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !a.aiRegistry.SupportsImageGeneration() {
-		writeAIError(w, "Image generation requires an OpenAI API key for DALL-E. Configure OPENAI_API_KEY to enable this feature.")
+		writeAIError(w, "Image generation requires OpenAI (DALL-E) or Gemini with GEMINI_MODEL_IMAGE set.")
 		return
 	}
 
@@ -254,7 +255,7 @@ func (a *Admin) AISuggestTitle(w http.ResponseWriter, r *http.Request) {
 SEO-friendly title suggestions for the given content. Each title should be on its own line,
 numbered 1-5. Keep titles under 70 characters. Do not include any other text or explanation.`
 
-	result, err := a.aiRegistry.Generate(r.Context(), systemPrompt, prompt)
+	result, err := a.aiRegistry.GenerateForTask(r.Context(), ai.TaskLight, systemPrompt, prompt)
 	if err != nil {
 		slog.Error("ai suggest title failed", "error", err)
 		writeAIError(w, "AI request failed. Check your provider configuration.")
@@ -306,7 +307,7 @@ func (a *Admin) AIGenerateExcerpt(w http.ResponseWriter, r *http.Request) {
 of the given content in 1-2 sentences (max 160 characters). The excerpt should capture the essence
 of the content and entice readers to click. Output ONLY the excerpt text, nothing else.`
 
-	result, err := a.aiRegistry.Generate(r.Context(), systemPrompt, prompt)
+	result, err := a.aiRegistry.GenerateForTask(r.Context(), ai.TaskLight, systemPrompt, prompt)
 	if err != nil {
 		slog.Error("ai generate excerpt failed", "error", err)
 		writeAIError(w, "AI request failed. Check your provider configuration.")
@@ -360,7 +361,7 @@ KEYWORDS: <keyword1, keyword2, keyword3, ...>
 
 Do not include any other text.`
 
-	result, err := a.aiRegistry.Generate(r.Context(), systemPrompt, prompt)
+	result, err := a.aiRegistry.GenerateForTask(r.Context(), ai.TaskLight, systemPrompt, prompt)
 	if err != nil {
 		slog.Error("ai seo metadata failed", "error", err)
 		writeAIError(w, "AI request failed. Check your provider configuration.")
@@ -455,7 +456,7 @@ func (a *Admin) AIRewrite(w http.ResponseWriter, r *http.Request) {
 in a %s tone. Preserve the key information and structure but adjust the language and style.
 The content uses Markdown formatting — preserve all Markdown syntax. Output ONLY the rewritten content, nothing else.`, toneDesc)
 
-	result, err := a.aiRegistry.Generate(r.Context(), systemPrompt, prompt)
+	result, err := a.aiRegistry.GenerateForTask(r.Context(), ai.TaskContent, systemPrompt, prompt)
 	if err != nil {
 		slog.Error("ai rewrite failed", "error", err)
 		writeAIError(w, "AI request failed. Check your provider configuration.")
@@ -503,7 +504,7 @@ func (a *Admin) AIExtractTags(w http.ResponseWriter, r *http.Request) {
 the given content. Tags should be short (1-3 words), lowercase, and relevant for blog categorization.
 Output ONLY the tags as a comma-separated list on a single line. No other text.`
 
-	result, err := a.aiRegistry.Generate(r.Context(), systemPrompt, prompt)
+	result, err := a.aiRegistry.GenerateForTask(r.Context(), ai.TaskLight, systemPrompt, prompt)
 	if err != nil {
 		slog.Error("ai extract tags failed", "error", err)
 		writeAIError(w, "AI request failed. Check your provider configuration.")
@@ -815,7 +816,7 @@ func (a *Admin) AITemplateGenerate(w http.ResponseWriter, r *http.Request) {
 	userPrompt.WriteString("Request: ")
 	userPrompt.WriteString(prompt)
 
-	result, err := a.aiRegistry.Generate(r.Context(), systemPrompt, userPrompt.String())
+	result, err := a.aiRegistry.GenerateForTask(r.Context(), ai.TaskTemplate, systemPrompt, userPrompt.String())
 	if err != nil {
 		slog.Error("ai template generate failed", "error", err)
 		writeJSON(w, http.StatusOK, templateGenResponse{

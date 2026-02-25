@@ -575,7 +575,7 @@ func (a *Admin) generateRevisionMeta(revID uuid.UUID, old *models.ContentRevisio
 (max 60 characters) that summarizes the changes made, like a git commit message.
 Output ONLY the title text, nothing else. Use imperative mood (e.g. "Update title and body content").`
 
-		result, err := a.aiRegistry.Generate(ctx, systemPrompt, prompt)
+		result, err := a.aiRegistry.GenerateForTask(ctx, ai.TaskLight, systemPrompt, prompt)
 		if err != nil {
 			slog.Warn("ai revision title failed", "error", err)
 			revTitle = "Content updated"
@@ -595,7 +595,7 @@ Output ONLY the title text, nothing else. Use imperative mood (e.g. "Update titl
 describing what changed in this content revision. Each bullet should start with "- ".
 Be concise and factual. Output ONLY the bullet points, nothing else.`
 
-	changelog, err := a.aiRegistry.Generate(ctx, changelogSystem, changelogPrompt)
+	changelog, err := a.aiRegistry.GenerateForTask(ctx, ai.TaskLight, changelogSystem, changelogPrompt)
 	if err != nil {
 		slog.Warn("ai revision changelog failed", "error", err)
 		changelog = diffSummary

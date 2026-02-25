@@ -34,22 +34,39 @@ type Config struct {
 	// the default on startup. Switchable at runtime from admin Settings.
 	AIProvider string // Default active: "openai", "gemini", "claude", "mistral"
 
-	// Per-provider credentials
-	OpenAIKey     string
-	OpenAIModel   string
-	OpenAIBaseURL string
+	// Per-provider credentials and model tiers.
+	// MODEL is the default (pro) model. MODEL_LIGHT is for cheap tasks
+	// (titles, excerpts, SEO, tags). MODEL_CONTENT and MODEL_TEMPLATE
+	// are optional overrides; they fall back to MODEL when unset.
+	OpenAIKey          string
+	OpenAIModel        string
+	OpenAIModelLight   string
+	OpenAIModelContent string
+	OpenAIModelTemplate string
+	OpenAIModelImage   string
+	OpenAIBaseURL      string
 
-	GeminiKey     string
-	GeminiModel   string
-	GeminiBaseURL string
+	GeminiKey          string
+	GeminiModel        string
+	GeminiModelLight   string
+	GeminiModelContent string
+	GeminiModelTemplate string
+	GeminiModelImage   string
+	GeminiBaseURL      string
 
-	ClaudeKey     string
-	ClaudeModel   string
-	ClaudeBaseURL string
+	ClaudeKey          string
+	ClaudeModel        string
+	ClaudeModelLight   string
+	ClaudeModelContent string
+	ClaudeModelTemplate string
+	ClaudeBaseURL      string
 
-	MistralKey     string
-	MistralModel   string
-	MistralBaseURL string
+	MistralKey          string
+	MistralModel        string
+	MistralModelLight   string
+	MistralModelContent string
+	MistralModelTemplate string
+	MistralBaseURL      string
 
 	// S3-compatible object storage (Hetzner CEPH)
 	S3Endpoint      string
@@ -82,21 +99,35 @@ func Load() (*Config, error) {
 
 		AIProvider: envOrDefault("AI_PROVIDER", "gemini"),
 
-		OpenAIKey:     os.Getenv("OPENAI_API_KEY"),
-		OpenAIModel:   envOrDefault("OPENAI_MODEL", "gpt-4o"),
-		OpenAIBaseURL: envOrDefault("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+		OpenAIKey:          os.Getenv("OPENAI_API_KEY"),
+		OpenAIModel:        envOrDefault("OPENAI_MODEL", "gpt-4o"),
+		OpenAIModelLight:   os.Getenv("OPENAI_MODEL_LIGHT"),
+		OpenAIModelContent: os.Getenv("OPENAI_MODEL_CONTENT"),
+		OpenAIModelTemplate: os.Getenv("OPENAI_MODEL_TEMPLATE"),
+		OpenAIModelImage:   envOrDefault("OPENAI_MODEL_IMAGE", "dall-e-3"),
+		OpenAIBaseURL:      envOrDefault("OPENAI_BASE_URL", "https://api.openai.com/v1"),
 
-		GeminiKey:     os.Getenv("GEMINI_API_KEY"),
-		GeminiModel:   envOrDefault("GEMINI_MODEL", "gemini-3.1-pro-preview"),
-		GeminiBaseURL: envOrDefault("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com"),
+		GeminiKey:          os.Getenv("GEMINI_API_KEY"),
+		GeminiModel:        envOrDefault("GEMINI_MODEL", "gemini-3.1-pro-preview"),
+		GeminiModelLight:   os.Getenv("GEMINI_MODEL_LIGHT"),
+		GeminiModelContent: os.Getenv("GEMINI_MODEL_CONTENT"),
+		GeminiModelTemplate: os.Getenv("GEMINI_MODEL_TEMPLATE"),
+		GeminiModelImage:   os.Getenv("GEMINI_MODEL_IMAGE"),
+		GeminiBaseURL:      envOrDefault("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com"),
 
-		ClaudeKey:     os.Getenv("CLAUDE_API_KEY"),
-		ClaudeModel:   envOrDefault("CLAUDE_MODEL", "claude-sonnet-4-6"),
-		ClaudeBaseURL: envOrDefault("CLAUDE_BASE_URL", "https://api.anthropic.com"),
+		ClaudeKey:          os.Getenv("CLAUDE_API_KEY"),
+		ClaudeModel:        envOrDefault("CLAUDE_MODEL", "claude-sonnet-4-6"),
+		ClaudeModelLight:   os.Getenv("CLAUDE_MODEL_LIGHT"),
+		ClaudeModelContent: os.Getenv("CLAUDE_MODEL_CONTENT"),
+		ClaudeModelTemplate: os.Getenv("CLAUDE_MODEL_TEMPLATE"),
+		ClaudeBaseURL:      envOrDefault("CLAUDE_BASE_URL", "https://api.anthropic.com"),
 
-		MistralKey:     os.Getenv("MISTRAL_API_KEY"),
-		MistralModel:   envOrDefault("MISTRAL_MODEL", "mistral-large-latest"),
-		MistralBaseURL: envOrDefault("MISTRAL_BASE_URL", "https://api.mistral.ai"),
+		MistralKey:          os.Getenv("MISTRAL_API_KEY"),
+		MistralModel:        envOrDefault("MISTRAL_MODEL", "mistral-large-latest"),
+		MistralModelLight:   os.Getenv("MISTRAL_MODEL_LIGHT"),
+		MistralModelContent: os.Getenv("MISTRAL_MODEL_CONTENT"),
+		MistralModelTemplate: os.Getenv("MISTRAL_MODEL_TEMPLATE"),
+		MistralBaseURL:      envOrDefault("MISTRAL_BASE_URL", "https://api.mistral.ai"),
 
 		S3Endpoint:      os.Getenv("S3_ENDPOINT"),
 		S3Region:        envOrDefault("S3_REGION", "fsn1"),
