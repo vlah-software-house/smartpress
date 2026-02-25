@@ -128,7 +128,8 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 			r.Route("/ai", func(r chi.Router) {
 				r.Use(aiLimiter.Middleware)
 				r.Post("/generate-content", admin.AIGenerateContent)
-			r.Post("/suggest-title", admin.AISuggestTitle)
+				r.Post("/generate-image", admin.AIGenerateImage)
+				r.Post("/suggest-title", admin.AISuggestTitle)
 				r.Post("/generate-excerpt", admin.AIGenerateExcerpt)
 				r.Post("/seo-metadata", admin.AISEOMetadata)
 				r.Post("/rewrite", admin.AIRewrite)

@@ -213,6 +213,7 @@ func (a *Admin) createContent(w http.ResponseWriter, r *http.Request, contentTyp
 	excerpt := r.FormValue("excerpt")
 	metaDesc := r.FormValue("meta_description")
 	metaKw := r.FormValue("meta_keywords")
+	featuredImageIDStr := r.FormValue("featured_image_id")
 
 	// Validate inputs.
 	if errMsg := validateContent(title, contentSlug, body); errMsg != "" {
@@ -273,6 +274,9 @@ func (a *Admin) createContent(w http.ResponseWriter, r *http.Request, contentTyp
 	if metaKw != "" {
 		c.MetaKeywords = &metaKw
 	}
+	if fid, err := uuid.Parse(featuredImageIDStr); err == nil {
+		c.FeaturedImageID = &fid
+	}
 
 	created, err := a.contentStore.Create(c)
 	if err != nil {
@@ -326,14 +330,29 @@ func (a *Admin) editContent(w http.ResponseWriter, r *http.Request, section stri
 		title = "Edit Page"
 	}
 
+	data := map[string]any{
+		"ContentType": contentType,
+		"IsNew":       false,
+		"Item":        item,
+	}
+
+	// Resolve featured image URL for display in the form.
+	if item.FeaturedImageID != nil && a.mediaStore != nil && a.storageClient != nil {
+		if media, err := a.mediaStore.FindByID(*item.FeaturedImageID); err == nil && media != nil {
+			if media.Bucket == a.storageClient.PublicBucket() {
+				data["FeaturedImageURL"] = a.storageClient.FileURL(media.S3Key)
+			}
+			if media.ThumbS3Key != nil {
+				data["FeaturedImageThumbURL"] = a.storageClient.FileURL(*media.ThumbS3Key)
+			}
+			data["FeaturedImageName"] = media.OriginalName
+		}
+	}
+
 	a.renderer.Page(w, r, "content_form", &render.PageData{
 		Title:   title,
 		Section: section,
-		Data: map[string]any{
-			"ContentType": contentType,
-			"IsNew":       false,
-			"Item":        item,
-		},
+		Data:    data,
 	})
 }
 
@@ -358,6 +377,7 @@ func (a *Admin) updateContent(w http.ResponseWriter, r *http.Request, section st
 	excerpt := r.FormValue("excerpt")
 	metaDesc := r.FormValue("meta_description")
 	metaKw := r.FormValue("meta_keywords")
+	featuredImageIDStr := r.FormValue("featured_image_id")
 
 	// Validate inputs.
 	if errMsg := validateContent(title, newSlug, body); errMsg != "" {
@@ -410,6 +430,13 @@ func (a *Admin) updateContent(w http.ResponseWriter, r *http.Request, section st
 		item.MetaKeywords = &metaKw
 	} else {
 		item.MetaKeywords = nil
+	}
+
+	// Update featured image (posts only).
+	if fid, err := uuid.Parse(featuredImageIDStr); err == nil {
+		item.FeaturedImageID = &fid
+	} else {
+		item.FeaturedImageID = nil
 	}
 
 	if err := a.contentStore.Update(item); err != nil {

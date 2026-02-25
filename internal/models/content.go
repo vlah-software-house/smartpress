@@ -38,6 +38,7 @@ type Content struct {
 	Status          ContentStatus `json:"status"`
 	MetaDescription *string       `json:"meta_description,omitempty"`
 	MetaKeywords    *string       `json:"meta_keywords,omitempty"`
+	FeaturedImageID *uuid.UUID    `json:"featured_image_id,omitempty"`
 	AuthorID        uuid.UUID     `json:"author_id"`
 	PublishedAt     *time.Time    `json:"published_at,omitempty"`
 	CreatedAt       time.Time     `json:"created_at"`

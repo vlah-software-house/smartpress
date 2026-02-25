@@ -155,7 +155,7 @@ func main() {
 	// Create handler groups with their dependencies.
 	adminHandlers := handlers.NewAdmin(renderer, sessionStore, contentStore, userStore, templateStore, mediaStore, storageClient, eng, pageCache, cacheLogStore, aiRegistry, aiCfg)
 	authHandlers := handlers.NewAuth(renderer, sessionStore, userStore)
-	publicHandlers := handlers.NewPublic(eng, contentStore, pageCache)
+	publicHandlers := handlers.NewPublic(eng, contentStore, mediaStore, storageClient, pageCache)
 
 	// Set up the Chi router with all middleware and routes.
 	r := router.New(sessionStore, adminHandlers, authHandlers, publicHandlers, secureCookies)

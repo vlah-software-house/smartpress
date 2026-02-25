@@ -25,12 +25,29 @@ func NewContentStore(db *sql.DB) *ContentStore {
 	return &ContentStore{db: db}
 }
 
+// contentColumns lists the columns selected in content queries.
+const contentColumns = `id, type, title, slug, body, excerpt, status,
+	meta_description, meta_keywords, featured_image_id, author_id,
+	published_at, created_at, updated_at`
+
+// scanContent scans a content row into a Content struct.
+func scanContent(scanner interface{ Scan(...any) error }) (*models.Content, error) {
+	var c models.Content
+	err := scanner.Scan(
+		&c.ID, &c.Type, &c.Title, &c.Slug, &c.Body, &c.Excerpt,
+		&c.Status, &c.MetaDescription, &c.MetaKeywords, &c.FeaturedImageID,
+		&c.AuthorID, &c.PublishedAt, &c.CreatedAt, &c.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
 // ListByType returns all content items of the given type, ordered by creation date descending.
 func (s *ContentStore) ListByType(contentType models.ContentType) ([]models.Content, error) {
 	rows, err := s.db.Query(`
-		SELECT id, type, title, slug, body, excerpt, status,
-		       meta_description, meta_keywords, author_id,
-		       published_at, created_at, updated_at
+		SELECT `+contentColumns+`
 		FROM content
 		WHERE type = $1
 		ORDER BY created_at DESC
@@ -42,32 +59,19 @@ func (s *ContentStore) ListByType(contentType models.ContentType) ([]models.Cont
 
 	var items []models.Content
 	for rows.Next() {
-		var c models.Content
-		if err := rows.Scan(
-			&c.ID, &c.Type, &c.Title, &c.Slug, &c.Body, &c.Excerpt,
-			&c.Status, &c.MetaDescription, &c.MetaKeywords, &c.AuthorID,
-			&c.PublishedAt, &c.CreatedAt, &c.UpdatedAt,
-		); err != nil {
+		c, err := scanContent(rows)
+		if err != nil {
 			return nil, fmt.Errorf("scan content: %w", err)
 		}
-		items = append(items, c)
+		items = append(items, *c)
 	}
 	return items, rows.Err()
 }
 
 // FindByID retrieves a content item by its UUID. Returns nil if not found.
 func (s *ContentStore) FindByID(id uuid.UUID) (*models.Content, error) {
-	c := &models.Content{}
-	err := s.db.QueryRow(`
-		SELECT id, type, title, slug, body, excerpt, status,
-		       meta_description, meta_keywords, author_id,
-		       published_at, created_at, updated_at
-		FROM content WHERE id = $1
-	`, id).Scan(
-		&c.ID, &c.Type, &c.Title, &c.Slug, &c.Body, &c.Excerpt,
-		&c.Status, &c.MetaDescription, &c.MetaKeywords, &c.AuthorID,
-		&c.PublishedAt, &c.CreatedAt, &c.UpdatedAt,
-	)
+	row := s.db.QueryRow(`SELECT `+contentColumns+` FROM content WHERE id = $1`, id)
+	c, err := scanContent(row)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -79,17 +83,11 @@ func (s *ContentStore) FindByID(id uuid.UUID) (*models.Content, error) {
 
 // FindBySlug retrieves a published content item by its slug. Used for public page rendering.
 func (s *ContentStore) FindBySlug(slug string) (*models.Content, error) {
-	c := &models.Content{}
-	err := s.db.QueryRow(`
-		SELECT id, type, title, slug, body, excerpt, status,
-		       meta_description, meta_keywords, author_id,
-		       published_at, created_at, updated_at
+	row := s.db.QueryRow(`
+		SELECT `+contentColumns+`
 		FROM content WHERE slug = $1 AND status = 'published'
-	`, slug).Scan(
-		&c.ID, &c.Type, &c.Title, &c.Slug, &c.Body, &c.Excerpt,
-		&c.Status, &c.MetaDescription, &c.MetaKeywords, &c.AuthorID,
-		&c.PublishedAt, &c.CreatedAt, &c.UpdatedAt,
-	)
+	`, slug)
+	c, err := scanContent(row)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -107,21 +105,17 @@ func (s *ContentStore) Create(c *models.Content) (*models.Content, error) {
 		c.PublishedAt = &now
 	}
 
-	result := &models.Content{}
-	err := s.db.QueryRow(`
+	row := s.db.QueryRow(`
 		INSERT INTO content (type, title, slug, body, excerpt, status,
-		                     meta_description, meta_keywords, author_id, published_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		RETURNING id, type, title, slug, body, excerpt, status,
-		          meta_description, meta_keywords, author_id,
-		          published_at, created_at, updated_at
-	`, c.Type, c.Title, c.Slug, c.Body, c.Excerpt, c.Status,
-		c.MetaDescription, c.MetaKeywords, c.AuthorID, c.PublishedAt,
-	).Scan(
-		&result.ID, &result.Type, &result.Title, &result.Slug, &result.Body,
-		&result.Excerpt, &result.Status, &result.MetaDescription, &result.MetaKeywords,
-		&result.AuthorID, &result.PublishedAt, &result.CreatedAt, &result.UpdatedAt,
+		                     meta_description, meta_keywords, featured_image_id,
+		                     author_id, published_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING `+contentColumns,
+		c.Type, c.Title, c.Slug, c.Body, c.Excerpt, c.Status,
+		c.MetaDescription, c.MetaKeywords, c.FeaturedImageID,
+		c.AuthorID, c.PublishedAt,
 	)
+	result, err := scanContent(row)
 	if err != nil {
 		return nil, fmt.Errorf("create content: %w", err)
 	}
@@ -139,11 +133,12 @@ func (s *ContentStore) Update(c *models.Content) error {
 	_, err := s.db.Exec(`
 		UPDATE content SET
 			title = $1, slug = $2, body = $3, excerpt = $4, status = $5,
-			meta_description = $6, meta_keywords = $7, published_at = $8,
-			updated_at = NOW()
-		WHERE id = $9
+			meta_description = $6, meta_keywords = $7, featured_image_id = $8,
+			published_at = $9, updated_at = NOW()
+		WHERE id = $10
 	`, c.Title, c.Slug, c.Body, c.Excerpt, c.Status,
-		c.MetaDescription, c.MetaKeywords, c.PublishedAt, c.ID,
+		c.MetaDescription, c.MetaKeywords, c.FeaturedImageID,
+		c.PublishedAt, c.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("update content: %w", err)
@@ -164,9 +159,7 @@ func (s *ContentStore) Delete(id uuid.UUID) error {
 // ordered by published date descending. Used for public page rendering.
 func (s *ContentStore) ListPublishedByType(contentType models.ContentType) ([]models.Content, error) {
 	rows, err := s.db.Query(`
-		SELECT id, type, title, slug, body, excerpt, status,
-		       meta_description, meta_keywords, author_id,
-		       published_at, created_at, updated_at
+		SELECT `+contentColumns+`
 		FROM content
 		WHERE type = $1 AND status = 'published'
 		ORDER BY published_at DESC NULLS LAST
@@ -178,15 +171,11 @@ func (s *ContentStore) ListPublishedByType(contentType models.ContentType) ([]mo
 
 	var items []models.Content
 	for rows.Next() {
-		var c models.Content
-		if err := rows.Scan(
-			&c.ID, &c.Type, &c.Title, &c.Slug, &c.Body, &c.Excerpt,
-			&c.Status, &c.MetaDescription, &c.MetaKeywords, &c.AuthorID,
-			&c.PublishedAt, &c.CreatedAt, &c.UpdatedAt,
-		); err != nil {
+		c, err := scanContent(rows)
+		if err != nil {
 			return nil, fmt.Errorf("scan content: %w", err)
 		}
-		items = append(items, c)
+		items = append(items, *c)
 	}
 	return items, rows.Err()
 }

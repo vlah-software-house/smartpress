@@ -7,6 +7,7 @@ package ai
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -94,6 +95,67 @@ func (p *openAIProvider) doChat(ctx context.Context, body openAIRequest) (string
 	return result.Choices[0].Message.Content, nil
 }
 
+// GenerateImage creates an image using the OpenAI DALL-E 3 API.
+// Returns PNG image bytes and the content type.
+func (p *openAIProvider) GenerateImage(ctx context.Context, prompt string) ([]byte, string, error) {
+	body := openAIImageRequest{
+		Model:          "dall-e-3",
+		Prompt:         prompt,
+		N:              1,
+		Size:           "1792x1024",
+		ResponseFormat: "b64_json",
+		Quality:        "standard",
+	}
+
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return nil, "", fmt.Errorf("openai image marshal: %w", err)
+	}
+
+	url := p.config.BaseURL + "/images/generations"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
+	if err != nil {
+		return nil, "", fmt.Errorf("openai image request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+p.config.APIKey)
+
+	// Image generation can take up to 60 seconds; use a dedicated client
+	// with a longer timeout.
+	imgClient := &http.Client{Timeout: 120 * time.Second}
+	resp, err := imgClient.Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("openai image http: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, "", fmt.Errorf("openai image read body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", fmt.Errorf("openai image API error (status %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var result openAIImageResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, "", fmt.Errorf("openai image unmarshal: %w", err)
+	}
+
+	if len(result.Data) == 0 {
+		return nil, "", fmt.Errorf("openai image: no images returned")
+	}
+
+	imgBytes, err := base64.StdEncoding.DecodeString(result.Data[0].B64JSON)
+	if err != nil {
+		return nil, "", fmt.Errorf("openai image decode base64: %w", err)
+	}
+
+	return imgBytes, "image/png", nil
+}
+
 // --- OpenAI-compatible request/response types ---
 // Used by both OpenAI and Mistral providers.
 
@@ -113,4 +175,23 @@ type openAIResponse struct {
 
 type openAIChoice struct {
 	Message openAIMessage `json:"message"`
+}
+
+// --- OpenAI image generation types ---
+
+type openAIImageRequest struct {
+	Model          string `json:"model"`
+	Prompt         string `json:"prompt"`
+	N              int    `json:"n"`
+	Size           string `json:"size"`
+	ResponseFormat string `json:"response_format"`
+	Quality        string `json:"quality"`
+}
+
+type openAIImageResponse struct {
+	Data []openAIImageData `json:"data"`
+}
+
+type openAIImageData struct {
+	B64JSON string `json:"b64_json"`
 }

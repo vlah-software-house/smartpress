@@ -14,6 +14,7 @@ import (
 	"yaaicms/internal/cache"
 	"yaaicms/internal/engine"
 	"yaaicms/internal/models"
+	"yaaicms/internal/storage"
 	"yaaicms/internal/store"
 )
 
@@ -21,17 +22,22 @@ import (
 // dynamic template engine. It checks the L2 Valkey page cache before
 // invoking the template engine, and stores rendered results on miss.
 type Public struct {
-	engine       *engine.Engine
-	contentStore *store.ContentStore
-	pageCache    *cache.PageCache
+	engine        *engine.Engine
+	contentStore  *store.ContentStore
+	mediaStore    *store.MediaStore
+	storageClient *storage.Client
+	pageCache     *cache.PageCache
 }
 
-// NewPublic creates a new Public handler group.
-func NewPublic(eng *engine.Engine, contentStore *store.ContentStore, pageCache *cache.PageCache) *Public {
+// NewPublic creates a new Public handler group. mediaStore and
+// storageClient may be nil if S3 is not configured.
+func NewPublic(eng *engine.Engine, contentStore *store.ContentStore, mediaStore *store.MediaStore, storageClient *storage.Client, pageCache *cache.PageCache) *Public {
 	return &Public{
-		engine:       eng,
-		contentStore: contentStore,
-		pageCache:    pageCache,
+		engine:        eng,
+		contentStore:  contentStore,
+		mediaStore:    mediaStore,
+		storageClient: storageClient,
+		pageCache:     pageCache,
 	}
 }
 
@@ -55,7 +61,7 @@ func (p *Public) Homepage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(posts) > 0 {
-		rendered, err := p.engine.RenderPostList(posts)
+		rendered, err := p.engine.RenderPostList(posts, p.resolveFeaturedImages(posts))
 		if err == nil {
 			p.pageCache.Set(ctx, cache.HomepageKey(), rendered)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -68,7 +74,7 @@ func (p *Public) Homepage(w http.ResponseWriter, r *http.Request) {
 	// Fall back to a "home" page if it exists.
 	home, err := p.contentStore.FindBySlug("home")
 	if err == nil && home != nil {
-		rendered, err := p.engine.RenderPage(home)
+		rendered, err := p.engine.RenderPage(home, p.resolveFeaturedImageURL(home))
 		if err == nil {
 			p.pageCache.Set(ctx, cache.HomepageKey(), rendered)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -115,7 +121,7 @@ func (p *Public) Page(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rendered, err := p.engine.RenderPage(content)
+	rendered, err := p.engine.RenderPage(content, p.resolveFeaturedImageURL(content))
 	if err != nil {
 		slog.Error("render page failed", "error", err, "slug", slugParam)
 		// Fall back to a safe error page when the template engine fails.
@@ -138,4 +144,42 @@ func (p *Public) Page(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write(rendered)
+}
+
+// resolveFeaturedImageURL returns the public URL for a content item's
+// featured image, or "" if none is set or storage is not configured.
+func (p *Public) resolveFeaturedImageURL(content *models.Content) string {
+	if content.FeaturedImageID == nil || p.mediaStore == nil || p.storageClient == nil {
+		return ""
+	}
+	media, err := p.mediaStore.FindByID(*content.FeaturedImageID)
+	if err != nil || media == nil {
+		return ""
+	}
+	if media.Bucket == p.storageClient.PublicBucket() {
+		return p.storageClient.FileURL(media.S3Key)
+	}
+	return ""
+}
+
+// resolveFeaturedImages returns a map of content ID → featured image URL
+// for a slice of content items. Used by the article_loop template.
+func (p *Public) resolveFeaturedImages(posts []models.Content) map[string]string {
+	if p.mediaStore == nil || p.storageClient == nil {
+		return nil
+	}
+	result := make(map[string]string)
+	for _, post := range posts {
+		if post.FeaturedImageID == nil {
+			continue
+		}
+		media, err := p.mediaStore.FindByID(*post.FeaturedImageID)
+		if err != nil || media == nil {
+			continue
+		}
+		if media.Bucket == p.storageClient.PublicBucket() {
+			result[post.ID.String()] = p.storageClient.FileURL(media.S3Key)
+		}
+	}
+	return result
 }

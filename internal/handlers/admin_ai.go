@@ -5,14 +5,19 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"html"
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
 
 	"yaaicms/internal/engine"
+	"yaaicms/internal/middleware"
 	"yaaicms/internal/models"
 	"yaaicms/internal/render"
 )
@@ -69,6 +74,122 @@ Rules:
 		</div>`,
 		result,
 		quoteJSString(result),
+	)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte(fragment))
+}
+
+// AIGenerateImage generates an image using the active AI provider's image
+// generation capability (e.g., DALL-E 3 for OpenAI). The generated image is
+// uploaded to S3 and stored as a media record. Returns an HTML fragment with
+// a preview and a "Use as Featured Image" button.
+func (a *Admin) AIGenerateImage(w http.ResponseWriter, r *http.Request) {
+	prompt := strings.TrimSpace(r.FormValue("ai_image_prompt"))
+	if prompt == "" {
+		writeAIError(w, "Please describe the image you'd like to generate.")
+		return
+	}
+
+	if a.storageClient == nil || a.mediaStore == nil {
+		writeAIError(w, "Object storage is not configured. Cannot save generated images.")
+		return
+	}
+
+	if !a.aiRegistry.SupportsImageGeneration() {
+		writeAIError(w, "The active AI provider does not support image generation. Switch to OpenAI in Settings.")
+		return
+	}
+
+	sess := middleware.SessionFromCtx(r.Context())
+
+	// Generate the image.
+	imgBytes, contentType, err := a.aiRegistry.GenerateImage(r.Context(), prompt)
+	if err != nil {
+		slog.Error("ai generate image failed", "error", err)
+		writeAIError(w, "Image generation failed. Check your provider configuration and API limits.")
+		return
+	}
+
+	// Upload to S3 as a media item (same pipeline as manual uploads).
+	now := time.Now()
+	fileID := uuid.New().String()
+	ext := ".png"
+	if contentType == "image/jpeg" {
+		ext = ".jpg"
+	} else if contentType == "image/webp" {
+		ext = ".webp"
+	}
+	s3Key := fmt.Sprintf("media/%d/%02d/%s%s", now.Year(), now.Month(), fileID, ext)
+	bucket := a.storageClient.PublicBucket()
+
+	ctx := r.Context()
+	if err := a.storageClient.Upload(ctx, bucket, s3Key, contentType, bytes.NewReader(imgBytes), int64(len(imgBytes))); err != nil {
+		slog.Error("ai image s3 upload failed", "error", err, "key", s3Key)
+		writeAIError(w, "Failed to upload generated image.")
+		return
+	}
+
+	// Generate thumbnail.
+	var thumbKey *string
+	thumbData, err := generateThumbnail(bytes.NewReader(imgBytes), thumbMaxWidth)
+	if err != nil {
+		slog.Warn("ai image thumbnail failed", "error", err)
+	} else if thumbData != nil {
+		tk := fmt.Sprintf("media/%d/%02d/%s_thumb.jpg", now.Year(), now.Month(), fileID)
+		if err := a.storageClient.Upload(ctx, bucket, tk, "image/jpeg", bytes.NewReader(thumbData), int64(len(thumbData))); err != nil {
+			slog.Warn("ai image thumbnail upload failed", "error", err)
+		} else {
+			thumbKey = &tk
+		}
+	}
+
+	// Create media record.
+	altText := truncate(prompt, 500)
+	media := &models.Media{
+		Filename:     fileID + ext,
+		OriginalName: "ai-generated" + ext,
+		ContentType:  contentType,
+		SizeBytes:    int64(len(imgBytes)),
+		Bucket:       bucket,
+		S3Key:        s3Key,
+		ThumbS3Key:   thumbKey,
+		AltText:      &altText,
+		UploaderID:   sess.UserID,
+	}
+
+	created, err := a.mediaStore.Create(media)
+	if err != nil {
+		slog.Error("ai image media insert failed", "error", err)
+		writeAIError(w, "Failed to save image metadata.")
+		return
+	}
+
+	// Return HTML fragment with preview and "Use" button.
+	imgURL := a.storageClient.FileURL(created.S3Key)
+	var thumbURL string
+	if created.ThumbS3Key != nil {
+		thumbURL = a.storageClient.FileURL(*created.ThumbS3Key)
+	} else {
+		thumbURL = imgURL
+	}
+
+	fragment := fmt.Sprintf(
+		`<div class="space-y-3">
+			<img src="%s" alt="%s" class="w-full rounded-lg shadow-sm border border-gray-200">
+			<button type="button"
+				onclick="document.getElementById('featured_image_id').value = '%s';
+				         document.getElementById('featured-image-preview').src = '%s';
+				         document.getElementById('featured-image-container').classList.remove('hidden');
+				         document.getElementById('featured-image-empty').classList.add('hidden')"
+				class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition-colors">
+				Use as Featured Image
+			</button>
+		</div>`,
+		html.EscapeString(thumbURL),
+		html.EscapeString(altText),
+		created.ID.String(),
+		html.EscapeString(imgURL),
 	)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -634,6 +755,7 @@ Available variables for PAGE templates:
 - {{.Excerpt}} — Short summary text
 - {{.MetaDescription}} — SEO meta description
 - {{.MetaKeywords}} — SEO keywords
+- {{.FeaturedImageURL}} — Public URL of the featured image (empty string if none)
 - {{.SiteName}} — The site name
 - {{.Year}} — Current year
 - {{.Slug}} — URL slug
@@ -655,6 +777,7 @@ Available variables for ARTICLE LOOP templates:
   - {{.Title}} — Post title
   - {{.Slug}} — Post URL slug (link as /{{.Slug}})
   - {{.Excerpt}} — Post excerpt/summary
+  - {{.FeaturedImageURL}} — Public URL of the featured image (empty string if none)
   - {{.PublishedAt}} — Publication date
 
 Article loop templates show a list/grid of blog posts. Include header and footer.
