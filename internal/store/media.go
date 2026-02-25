@@ -122,6 +122,44 @@ func (s *MediaStore) UpdateThumbKey(id uuid.UUID, thumbKey *string) error {
 	return nil
 }
 
+// FindByS3Keys returns media items matching the given S3 keys, keyed by s3_key.
+// Used for batch-resolving inline content images to their responsive variants.
+func (s *MediaStore) FindByS3Keys(keys []string) (map[string]*models.Media, error) {
+	if len(keys) == 0 {
+		return nil, nil
+	}
+
+	placeholders := ""
+	args := make([]any, len(keys))
+	for i, k := range keys {
+		if i > 0 {
+			placeholders += ", "
+		}
+		placeholders += fmt.Sprintf("$%d", i+1)
+		args[i] = k
+	}
+
+	rows, err := s.db.Query(`
+		SELECT `+mediaColumns+`
+		FROM media
+		WHERE s3_key IN (`+placeholders+`)
+	`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("find media by s3 keys: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]*models.Media)
+	for rows.Next() {
+		m, err := scanMedia(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan media: %w", err)
+		}
+		result[m.S3Key] = m
+	}
+	return result, rows.Err()
+}
+
 // Count returns the total number of media items.
 func (s *MediaStore) Count() (int, error) {
 	var count int

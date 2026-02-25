@@ -12,10 +12,15 @@ import (
 	"fmt"
 	"html/template"
 	"log/slog"
+	"regexp"
+	"strings"
 	"time"
+
+	"github.com/google/uuid"
 
 	"yaaicms/internal/markdown"
 	"yaaicms/internal/models"
+	"yaaicms/internal/storage"
 	"yaaicms/internal/store"
 )
 
@@ -71,9 +76,19 @@ type ListData struct {
 // Engine compiles and renders templates from the database. It maintains
 // an in-memory cache (L1) of compiled Go templates keyed by ID+version,
 // so repeated renders skip the expensive template.Parse step.
+//
+// When media dependencies are configured (via SetMediaDeps), the engine
+// also rewrites <img> tags in content bodies to include responsive
+// srcset attributes using WebP variants from the media_variants table.
 type Engine struct {
 	templateStore *store.TemplateStore
 	cache         *templateCache
+
+	// Optional media dependencies for body image srcset rewriting.
+	// Nil when S3 storage is not configured — rewriting is silently skipped.
+	mediaStore    *store.MediaStore
+	variantStore  *store.VariantStore
+	storageClient *storage.Client
 }
 
 // New creates a new template rendering engine with an empty L1 cache.
@@ -82,6 +97,14 @@ func New(templateStore *store.TemplateStore) *Engine {
 		templateStore: templateStore,
 		cache:         newTemplateCache(),
 	}
+}
+
+// SetMediaDeps configures optional media dependencies for body image
+// srcset rewriting. Call after New() when S3 storage is available.
+func (e *Engine) SetMediaDeps(mediaStore *store.MediaStore, variantStore *store.VariantStore, storageClient *storage.Client) {
+	e.mediaStore = mediaStore
+	e.variantStore = variantStore
+	e.storageClient = storageClient
 }
 
 // InvalidateTemplate removes a specific template from the L1 cache.
@@ -135,6 +158,9 @@ func (e *Engine) RenderPage(content *models.Content, img *FeaturedImage) ([]byte
 			bodyHTML = rendered
 		}
 	}
+
+	// Rewrite inline <img> tags to include responsive srcset when variants exist.
+	bodyHTML = e.rewriteBodyImages(bodyHTML)
 
 	data := PageData{
 		SiteName:    "YaaiCMS",
@@ -281,4 +307,144 @@ func (e *Engine) compileAndRender(id string, version int, tmplContent string, da
 	}
 
 	return buf.Bytes(), nil
+}
+
+// imgSrcRe matches <img ... src="..." ...> tags and captures the full tag
+// and the src URL. It handles single and double quotes.
+var imgSrcRe = regexp.MustCompile(`<img\s([^>]*?)src=["']([^"']+)["']([^>]*)>`)
+
+// rewriteBodyImages scans HTML for <img> tags whose src URLs reference
+// this site's S3 storage, looks up their responsive variants, and injects
+// srcset attributes. Tags that already have srcset are left untouched.
+// Returns the original HTML unchanged if media deps are not configured.
+func (e *Engine) rewriteBodyImages(html string) string {
+	if e.storageClient == nil || e.mediaStore == nil || e.variantStore == nil {
+		return html
+	}
+
+	// Find all <img> tags with their src URLs.
+	matches := imgSrcRe.FindAllStringSubmatchIndex(html, -1)
+	if len(matches) == 0 {
+		return html
+	}
+
+	// Extract S3 keys from matched img src URLs, deduplicating.
+	type imgMatch struct {
+		fullStart, fullEnd int    // indices of the full <img ...> tag
+		preAttrs           string // attributes before src
+		srcURL             string // the src URL value
+		postAttrs          string // attributes after src
+		s3Key              string // extracted S3 key (empty if not our storage)
+	}
+
+	var imgs []imgMatch
+	keySet := make(map[string]bool)
+	var s3Keys []string
+
+	for _, loc := range matches {
+		preAttrs := html[loc[2]:loc[3]]
+		srcURL := html[loc[4]:loc[5]]
+		postAttrs := html[loc[6]:loc[7]]
+
+		im := imgMatch{
+			fullStart: loc[0],
+			fullEnd:   loc[1],
+			preAttrs:  preAttrs,
+			srcURL:    srcURL,
+			postAttrs: postAttrs,
+		}
+
+		// Skip if this tag already has srcset.
+		fullTag := html[loc[0]:loc[1]]
+		if strings.Contains(fullTag, "srcset") {
+			imgs = append(imgs, im)
+			continue
+		}
+
+		if key, ok := e.storageClient.ExtractS3Key(srcURL); ok {
+			im.s3Key = key
+			if !keySet[key] {
+				keySet[key] = true
+				s3Keys = append(s3Keys, key)
+			}
+		}
+		imgs = append(imgs, im)
+	}
+
+	if len(s3Keys) == 0 {
+		return html
+	}
+
+	// Batch-fetch media records by S3 key.
+	mediaByKey, err := e.mediaStore.FindByS3Keys(s3Keys)
+	if err != nil {
+		slog.Warn("body image rewrite: media lookup failed", "error", err)
+		return html
+	}
+
+	// Collect media IDs for variant lookup.
+	var mediaIDs []uuid.UUID
+	for _, m := range mediaByKey {
+		mediaIDs = append(mediaIDs, m.ID)
+	}
+
+	// Batch-fetch all variants.
+	variantMap, err := e.variantStore.FindByMediaIDs(mediaIDs)
+	if err != nil {
+		slog.Warn("body image rewrite: variant lookup failed", "error", err)
+		return html
+	}
+
+	// Build replacement HTML from back to front (so indices stay valid).
+	result := []byte(html)
+	for i := len(imgs) - 1; i >= 0; i-- {
+		im := imgs[i]
+		if im.s3Key == "" {
+			continue
+		}
+		media := mediaByKey[im.s3Key]
+		if media == nil {
+			continue
+		}
+		variants := variantMap[media.ID]
+		if len(variants) == 0 {
+			continue
+		}
+
+		srcset := e.buildSrcsetFromVariants(variants)
+		if srcset == "" {
+			continue
+		}
+
+		// Rebuild the <img> tag with srcset and sizes injected after src.
+		var tag strings.Builder
+		tag.WriteString(`<img `)
+		tag.WriteString(im.preAttrs)
+		tag.WriteString(`src="`)
+		tag.WriteString(im.srcURL)
+		tag.WriteString(`" srcset="`)
+		tag.WriteString(srcset)
+		tag.WriteString(`" sizes="(max-width: 640px) 640px, (max-width: 1024px) 1024px, 1920px"`)
+		tag.WriteString(im.postAttrs)
+		tag.WriteString(`>`)
+
+		// Replace the original tag.
+		result = append(result[:im.fullStart], append([]byte(tag.String()), result[im.fullEnd:]...)...)
+	}
+
+	return string(result)
+}
+
+// buildSrcsetFromVariants constructs an HTML srcset string from variants,
+// excluding thumb (too small for content images).
+func (e *Engine) buildSrcsetFromVariants(variants []models.MediaVariant) string {
+	var parts []string
+	for _, v := range variants {
+		if v.Name == "thumb" {
+			continue
+		}
+		url := e.storageClient.FileURL(v.S3Key)
+		parts = append(parts, fmt.Sprintf("%s %dw", url, v.Width))
+	}
+	return strings.Join(parts, ", ")
 }
