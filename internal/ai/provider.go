@@ -68,10 +68,22 @@ func NewRegistry(active string, configs map[string]ProviderConfig) *Registry {
 	}
 
 	// Set up prompt moderation: prefer OpenAI (free), fall back to Mistral.
-	if cfg, ok := configs["openai"]; ok && cfg.APIKey != "" {
-		r.moderator = newOpenAIModerator(cfg.APIKey, cfg.BaseURL)
-	} else if cfg, ok := configs["mistral"]; ok && cfg.APIKey != "" {
-		r.moderator = newMistralModerator(cfg.APIKey, cfg.BaseURL)
+	// When both keys are available, use a fallback moderator that automatically
+	// switches from OpenAI to Mistral on auth errors (e.g. project-scoped keys).
+	openaiCfg, hasOpenAI := configs["openai"]
+	hasOpenAI = hasOpenAI && openaiCfg.APIKey != ""
+	mistralCfg, hasMistral := configs["mistral"]
+	hasMistral = hasMistral && mistralCfg.APIKey != ""
+
+	if hasOpenAI && hasMistral {
+		r.moderator = newFallbackModerator(
+			newOpenAIModerator(openaiCfg.APIKey, openaiCfg.BaseURL),
+			newMistralModerator(mistralCfg.APIKey, mistralCfg.BaseURL),
+		)
+	} else if hasOpenAI {
+		r.moderator = newOpenAIModerator(openaiCfg.APIKey, openaiCfg.BaseURL)
+	} else if hasMistral {
+		r.moderator = newMistralModerator(mistralCfg.APIKey, mistralCfg.BaseURL)
 	}
 
 	return r

@@ -10,8 +10,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -198,6 +200,48 @@ func (m *mistralModerator) CheckSafety(ctx context.Context, text string) (*Moder
 		Safe:       len(flagged) == 0,
 		Categories: flagged,
 	}, nil
+}
+
+// --- Fallback Moderator ---
+
+// fallbackModerator tries the primary moderator first; if it returns a
+// persistent error (e.g. 403 from a project-scoped API key), it automatically
+// switches to the secondary moderator for all future calls.
+type fallbackModerator struct {
+	primary   Moderator
+	secondary Moderator
+	usePrimary atomic.Bool
+}
+
+// newFallbackModerator creates a moderator that tries primary first and
+// falls back to secondary on persistent errors.
+func newFallbackModerator(primary, secondary Moderator) *fallbackModerator {
+	m := &fallbackModerator{
+		primary:   primary,
+		secondary: secondary,
+	}
+	m.usePrimary.Store(true)
+	return m
+}
+
+func (m *fallbackModerator) CheckSafety(ctx context.Context, text string) (*ModerationResult, error) {
+	if m.usePrimary.Load() {
+		result, err := m.primary.CheckSafety(ctx, text)
+		if err == nil {
+			return result, nil
+		}
+		// On auth/permission errors, permanently switch to secondary.
+		if strings.Contains(err.Error(), "status 403") || strings.Contains(err.Error(), "status 401") {
+			slog.Warn("primary moderator returned auth error, switching to fallback",
+				"error", err)
+			m.usePrimary.Store(false)
+			return m.secondary.CheckSafety(ctx, text)
+		}
+		// For transient errors, try the secondary once but don't switch permanently.
+		slog.Warn("primary moderator failed, trying fallback", "error", err)
+		return m.secondary.CheckSafety(ctx, text)
+	}
+	return m.secondary.CheckSafety(ctx, text)
 }
 
 // --- Request/Response types ---
