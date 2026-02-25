@@ -45,6 +45,10 @@ func (a *Admin) AIGenerateContent(w http.ResponseWriter, r *http.Request) {
 		contentType = "article"
 	}
 
+	if !a.checkPromptSafety(w, r, prompt) {
+		return
+	}
+
 	systemPrompt := fmt.Sprintf(`You are an expert content writer for a CMS. Write a complete %s based on the user's description.
 
 Rules:
@@ -98,6 +102,10 @@ func (a *Admin) AIGenerateImage(w http.ResponseWriter, r *http.Request) {
 
 	if !a.aiRegistry.SupportsImageGeneration() {
 		writeAIError(w, "The active AI provider does not support image generation. Switch to OpenAI in Settings.")
+		return
+	}
+
+	if !a.checkPromptSafety(w, r, prompt) {
 		return
 	}
 
@@ -207,6 +215,11 @@ func (a *Admin) AISuggestTitle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	promptText := title + " " + body
+	if !a.checkPromptSafety(w, r, truncate(promptText, 2000)) {
+		return
+	}
+
 	prompt := fmt.Sprintf("Title: %s\n\nContent:\n%s", title, truncate(body, 2000))
 
 	systemPrompt := `You are a headline writing expert for a CMS. Generate exactly 5 compelling,
@@ -255,6 +268,10 @@ func (a *Admin) AIGenerateExcerpt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !a.checkPromptSafety(w, r, truncate(body, 2000)) {
+		return
+	}
+
 	prompt := fmt.Sprintf("Title: %s\n\nContent:\n%s", title, truncate(body, 2000))
 
 	systemPrompt := `You are a content summarization expert. Generate a compelling excerpt/summary
@@ -295,6 +312,11 @@ func (a *Admin) AISEOMetadata(w http.ResponseWriter, r *http.Request) {
 
 	if body == "" && title == "" {
 		writeAIError(w, "Please write some content or a title first.")
+		return
+	}
+
+	promptText := title + " " + body
+	if !a.checkPromptSafety(w, r, truncate(promptText, 2000)) {
 		return
 	}
 
@@ -378,6 +400,10 @@ func (a *Admin) AIRewrite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !a.checkPromptSafety(w, r, truncate(body, 3000)) {
+		return
+	}
+
 	if tone == "" {
 		tone = "professional"
 	}
@@ -437,6 +463,11 @@ func (a *Admin) AIExtractTags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	promptText := title + " " + body
+	if !a.checkPromptSafety(w, r, truncate(promptText, 2000)) {
+		return
+	}
+
 	prompt := fmt.Sprintf("Title: %s\n\nContent:\n%s", title, truncate(body, 2000))
 
 	systemPrompt := `You are a content categorization expert. Extract 5-10 relevant tags from
@@ -478,6 +509,31 @@ Output ONLY the tags as a comma-separated list on a single line. No other text.`
 }
 
 // --- Helper functions ---
+
+// checkPromptSafety runs the user prompt through the moderation API.
+// Returns true if the prompt is safe (or if no moderator is available).
+// If the prompt is flagged, writes an error response and returns false.
+func (a *Admin) checkPromptSafety(w http.ResponseWriter, r *http.Request, prompt string) bool {
+	result, err := a.aiRegistry.CheckPrompt(r.Context(), prompt)
+	if err != nil {
+		slog.Warn("moderation check failed, allowing prompt", "error", err)
+		return true // fail open — providers have their own safety filters
+	}
+
+	if result.Safe {
+		return true
+	}
+
+	categories := strings.Join(result.Categories, ", ")
+	slog.Warn("prompt flagged by moderation", "categories", categories)
+
+	msg := fmt.Sprintf(
+		"Your prompt was flagged for: %s. Please reformulate your request and try again.",
+		categories,
+	)
+	writeAIError(w, msg)
+	return false
+}
 
 // writeAIError writes an error message HTML fragment.
 func writeAIError(w http.ResponseWriter, msg string) {
@@ -603,6 +659,19 @@ func (a *Admin) AITemplateGenerate(w http.ResponseWriter, r *http.Request) {
 
 	if prompt == "" {
 		writeJSON(w, http.StatusBadRequest, templateGenResponse{Error: "Please enter a prompt."})
+		return
+	}
+
+	// Check prompt safety before generating.
+	modResult, err := a.aiRegistry.CheckPrompt(r.Context(), prompt)
+	if err != nil {
+		slog.Warn("moderation check failed for template prompt", "error", err)
+	} else if !modResult.Safe {
+		categories := strings.Join(modResult.Categories, ", ")
+		slog.Warn("template prompt flagged by moderation", "categories", categories)
+		writeJSON(w, http.StatusOK, templateGenResponse{
+			Error: fmt.Sprintf("Your prompt was flagged for: %s. Please reformulate your request and try again.", categories),
+		})
 		return
 	}
 

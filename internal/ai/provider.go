@@ -38,10 +38,13 @@ type Registry struct {
 	mu        sync.RWMutex
 	providers map[string]Provider
 	active    string
+	moderator Moderator // may be nil if no moderation API is available
 }
 
 // NewRegistry creates a registry and initialises providers for every config
 // that has a non-empty API key. Providers without keys are silently skipped.
+// A Moderator is automatically configured: OpenAI's free moderation API is
+// preferred; Mistral's paid endpoint is used as fallback.
 func NewRegistry(active string, configs map[string]ProviderConfig) *Registry {
 	r := &Registry{
 		providers: make(map[string]Provider),
@@ -62,6 +65,13 @@ func NewRegistry(active string, configs map[string]ProviderConfig) *Registry {
 		case "mistral":
 			r.providers[name] = newMistral(cfg)
 		}
+	}
+
+	// Set up prompt moderation: prefer OpenAI (free), fall back to Mistral.
+	if cfg, ok := configs["openai"]; ok && cfg.APIKey != "" {
+		r.moderator = newOpenAIModerator(cfg.APIKey, cfg.BaseURL)
+	} else if cfg, ok := configs["mistral"]; ok && cfg.APIKey != "" {
+		r.moderator = newMistralModerator(cfg.APIKey, cfg.BaseURL)
 	}
 
 	return r
@@ -127,6 +137,18 @@ func (r *Registry) Register(name string, p Provider) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.providers[name] = p
+}
+
+// CheckPrompt runs the user prompt through the moderation API before
+// generation. Returns nil if the prompt is safe or if no moderator is
+// configured (graceful degradation — providers still have their own
+// built-in safety filters). Returns a *ModerationResult with Safe=false
+// and flagged Categories if the prompt violates policies.
+func (r *Registry) CheckPrompt(ctx context.Context, prompt string) (*ModerationResult, error) {
+	if r.moderator == nil {
+		return &ModerationResult{Safe: true}, nil
+	}
+	return r.moderator.CheckSafety(ctx, prompt)
 }
 
 // HasProvider checks whether a named provider is configured and available.
