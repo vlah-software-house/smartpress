@@ -24,6 +24,57 @@ import (
 // calls the active AI provider, and returns HTML fragments that get swapped
 // into the assistant panel's result areas.
 
+// AIGenerateContent generates a full article from a user-provided topic prompt.
+// Returns an HTML fragment with the generated content and an "Apply" button
+// that fills the body textarea.
+func (a *Admin) AIGenerateContent(w http.ResponseWriter, r *http.Request) {
+	prompt := strings.TrimSpace(r.FormValue("ai_content_prompt"))
+	contentType := r.FormValue("content_type")
+
+	if prompt == "" {
+		writeAIError(w, "Please describe what you'd like to write about.")
+		return
+	}
+
+	if contentType == "" {
+		contentType = "article"
+	}
+
+	systemPrompt := fmt.Sprintf(`You are an expert content writer for a CMS. Write a complete %s based on the user's description.
+
+Rules:
+- Output ONLY the article body as clean HTML (use <p>, <h2>, <h3>, <ul>, <ol>, <li>, <strong>, <em>, <blockquote> tags).
+- Do NOT include a top-level <h1> tag (the CMS adds the title separately).
+- Do NOT wrap the output in markdown code fences.
+- Write 3-6 well-structured paragraphs with subheadings where appropriate.
+- Make the content informative, engaging, and ready to publish.`, contentType)
+
+	result, err := a.aiRegistry.Generate(r.Context(), systemPrompt, prompt)
+	if err != nil {
+		slog.Error("ai generate content failed", "error", err)
+		writeAIError(w, "AI request failed. Check your provider configuration.")
+		return
+	}
+
+	result = extractHTMLFromResponse(result)
+
+	fragment := fmt.Sprintf(
+		`<div class="space-y-3">
+			<div class="text-xs text-gray-700 bg-gray-50 rounded p-3 max-h-48 overflow-y-auto prose prose-sm">%s</div>
+			<button type="button"
+				onclick="document.getElementById('body').value = %s; document.getElementById('body').dispatchEvent(new Event('input'))"
+				class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition-colors">
+				Apply to Content
+			</button>
+		</div>`,
+		result,
+		quoteJSString(result),
+	)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write([]byte(fragment))
+}
+
 // AISuggestTitle generates title suggestions based on the content body.
 // Returns an HTML fragment with clickable title options.
 func (a *Admin) AISuggestTitle(w http.ResponseWriter, r *http.Request) {
