@@ -127,7 +127,7 @@ func Load() (*Config, error) {
 		MistralModelLight:   os.Getenv("MISTRAL_MODEL_LIGHT"),
 		MistralModelContent: os.Getenv("MISTRAL_MODEL_CONTENT"),
 		MistralModelTemplate: os.Getenv("MISTRAL_MODEL_TEMPLATE"),
-		MistralBaseURL:      envOrDefault("MISTRAL_BASE_URL", "https://api.mistral.ai"),
+		MistralBaseURL:      envOrDefault("MISTRAL_BASE_URL", "https://api.mistral.ai/v1"),
 
 		S3Endpoint:      os.Getenv("S3_ENDPOINT"),
 		S3Region:        envOrDefault("S3_REGION", "fsn1"),

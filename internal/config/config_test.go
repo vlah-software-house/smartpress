@@ -68,7 +68,7 @@ func TestLoad_Defaults(t *testing.T) {
 		"ClaudeModel":    "claude-sonnet-4-6",
 		"ClaudeBaseURL":  "https://api.anthropic.com",
 		"MistralModel":   "mistral-large-latest",
-		"MistralBaseURL": "https://api.mistral.ai",
+		"MistralBaseURL": "https://api.mistral.ai/v1",
 		"S3Region":       "fsn1",
 		"S3BucketPublic": "yaaicms-public",
 		"S3BucketPrivate":"yaaicms-private",
