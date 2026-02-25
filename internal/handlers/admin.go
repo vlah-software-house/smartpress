@@ -21,6 +21,7 @@ import (
 	"smartpress/internal/render"
 	"smartpress/internal/session"
 	"smartpress/internal/slug"
+	"smartpress/internal/storage"
 	"smartpress/internal/store"
 )
 
@@ -49,6 +50,8 @@ type Admin struct {
 	contentStore  *store.ContentStore
 	userStore     *store.UserStore
 	templateStore *store.TemplateStore
+	mediaStore    *store.MediaStore
+	storageClient *storage.Client
 	engine        *engine.Engine
 	pageCache     *cache.PageCache
 	cacheLog      *store.CacheLogStore
@@ -57,13 +60,16 @@ type Admin struct {
 }
 
 // NewAdmin creates a new Admin handler group with the given dependencies.
-func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, eng *engine.Engine, pageCache *cache.PageCache, cacheLog *store.CacheLogStore, aiRegistry *ai.Registry, aiCfg *AIConfig) *Admin {
+// storageClient and mediaStore may be nil if S3 is not configured.
+func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, mediaStore *store.MediaStore, storageClient *storage.Client, eng *engine.Engine, pageCache *cache.PageCache, cacheLog *store.CacheLogStore, aiRegistry *ai.Registry, aiCfg *AIConfig) *Admin {
 	return &Admin{
 		renderer:      renderer,
 		sessions:      sessions,
 		contentStore:  contentStore,
 		userStore:     userStore,
 		templateStore: templateStore,
+		mediaStore:    mediaStore,
+		storageClient: storageClient,
 		engine:        eng,
 		pageCache:     pageCache,
 		cacheLog:      cacheLog,
@@ -77,14 +83,19 @@ func (a *Admin) Dashboard(w http.ResponseWriter, r *http.Request) {
 	postCount, _ := a.contentStore.CountByType(models.ContentTypePost)
 	pageCount, _ := a.contentStore.CountByType(models.ContentTypePage)
 	users, _ := a.userStore.List()
+	var mediaCount int
+	if a.mediaStore != nil {
+		mediaCount, _ = a.mediaStore.Count()
+	}
 
 	a.renderer.Page(w, r, "dashboard", &render.PageData{
 		Title:   "Dashboard",
 		Section: "dashboard",
 		Data: map[string]any{
-			"PostCount": postCount,
-			"PageCount": pageCount,
-			"UserCount": len(users),
+			"PostCount":  postCount,
+			"PageCount":  pageCount,
+			"UserCount":  len(users),
+			"MediaCount": mediaCount,
 		},
 	})
 }

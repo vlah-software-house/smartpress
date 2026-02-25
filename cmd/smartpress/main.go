@@ -21,6 +21,7 @@ import (
 	"smartpress/internal/render"
 	"smartpress/internal/router"
 	"smartpress/internal/session"
+	"smartpress/internal/storage"
 	"smartpress/internal/store"
 )
 
@@ -90,6 +91,29 @@ func main() {
 	contentStore := store.NewContentStore(db)
 	templateStore := store.NewTemplateStore(db)
 	cacheLogStore := store.NewCacheLogStore(db)
+	mediaStore := store.NewMediaStore(db)
+
+	// Connect to S3-compatible object storage (optional — app works without it).
+	var storageClient *storage.Client
+	if cfg.S3Endpoint != "" && cfg.S3AccessKey != "" {
+		storageClient, err = storage.New(
+			cfg.S3Endpoint, cfg.S3Region, cfg.S3AccessKey, cfg.S3SecretKey,
+			cfg.S3BucketPublic, cfg.S3BucketPrivate, cfg.S3PublicURL,
+		)
+		if err != nil {
+			slog.Error("failed to initialize S3 storage", "error", err)
+			os.Exit(1)
+		}
+		if storageClient != nil {
+			slog.Info("s3 storage connected",
+				"endpoint", cfg.S3Endpoint,
+				"public_bucket", cfg.S3BucketPublic,
+				"private_bucket", cfg.S3BucketPrivate,
+			)
+		}
+	} else {
+		slog.Warn("s3 storage not configured — media uploads disabled")
+	}
 
 	// Initialize the dynamic template engine for public page rendering.
 	eng := engine.New(templateStore)
@@ -122,7 +146,7 @@ func main() {
 	}
 
 	// Create handler groups with their dependencies.
-	adminHandlers := handlers.NewAdmin(renderer, sessionStore, contentStore, userStore, templateStore, eng, pageCache, cacheLogStore, aiRegistry, aiCfg)
+	adminHandlers := handlers.NewAdmin(renderer, sessionStore, contentStore, userStore, templateStore, mediaStore, storageClient, eng, pageCache, cacheLogStore, aiRegistry, aiCfg)
 	authHandlers := handlers.NewAuth(renderer, sessionStore, userStore)
 	publicHandlers := handlers.NewPublic(eng, contentStore, pageCache)
 

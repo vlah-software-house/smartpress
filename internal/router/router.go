@@ -97,6 +97,14 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 				r.Post("/{id}/activate", admin.TemplateActivate)
 			})
 
+			// Media Library
+			r.Route("/media", func(r chi.Router) {
+				r.Get("/", admin.MediaLibrary)
+				r.Post("/", admin.MediaUpload)
+				r.Delete("/{id}", admin.MediaDelete)
+				r.Get("/{id}/url", admin.MediaServe)
+			})
+
 			// User management — admin only
 			r.Route("/users", func(r chi.Router) {
 				r.Use(middleware.RequireAdmin)

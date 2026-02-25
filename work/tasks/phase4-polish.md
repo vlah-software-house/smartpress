@@ -10,9 +10,11 @@
 - [x] 2FA setup GET side effect fix (reuse pending secret on refresh)
 
 ## Step 12: Media Management
-- [ ] Image upload, storage, serving
-- [ ] Thumbnail generation
-- [ ] Media library admin UI
+- [x] Image upload to S3-compatible storage (Hetzner CEPH, dual buckets)
+- [x] Thumbnail generation (CatmullRom resize, JPEG output)
+- [x] Media library admin UI (grid view, upload modal, drag-and-drop, delete)
+- [x] Private file serving via presigned URLs
+- [x] Content type validation (sniff-based, not header-trusted)
 
 ## Step 13: Infrastructure
 - [ ] Production Dockerfile (multi-stage build)

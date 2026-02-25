@@ -46,6 +46,15 @@ type Config struct {
 	MistralKey     string
 	MistralModel   string
 	MistralBaseURL string
+
+	// S3-compatible object storage (Hetzner CEPH)
+	S3Endpoint      string
+	S3Region        string
+	S3AccessKey     string
+	S3SecretKey     string
+	S3BucketPublic  string
+	S3BucketPrivate string
+	S3PublicURL     string // Optional CDN/public URL for serving files
 }
 
 // Load reads configuration from environment variables, applying defaults
@@ -84,6 +93,14 @@ func Load() (*Config, error) {
 		MistralKey:     os.Getenv("MISTRAL_API_KEY"),
 		MistralModel:   envOrDefault("MISTRAL_MODEL", "mistral-large-latest"),
 		MistralBaseURL: envOrDefault("MISTRAL_BASE_URL", "https://api.mistral.ai"),
+
+		S3Endpoint:      os.Getenv("S3_ENDPOINT"),
+		S3Region:        envOrDefault("S3_REGION", "fsn1"),
+		S3AccessKey:     os.Getenv("S3_ACCESS_KEY"),
+		S3SecretKey:     os.Getenv("S3_SECRET_KEY"),
+		S3BucketPublic:  envOrDefault("S3_BUCKET_PUBLIC", "smartpress-public"),
+		S3BucketPrivate: envOrDefault("S3_BUCKET_PRIVATE", "smartpress-private"),
+		S3PublicURL:     os.Getenv("S3_PUBLIC_URL"),
 	}
 
 	if cfg.Env == "production" {
