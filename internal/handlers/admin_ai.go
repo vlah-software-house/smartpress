@@ -74,16 +74,23 @@ Rules:
 
 	result = extractHTMLFromResponse(result)
 
+	// Render Markdown to HTML for a human-readable preview while keeping
+	// the raw Markdown for the "Apply" button (editor expects Markdown).
+	previewHTML, err := markdown.ToHTML(result)
+	if err != nil {
+		previewHTML = html.EscapeString(result)
+	}
+
 	fragment := fmt.Sprintf(
 		`<div class="space-y-3">
-			<div class="text-xs text-gray-700 bg-gray-50 rounded p-3 max-h-48 overflow-y-auto prose prose-sm">%s</div>
+			<div class="ai-preview text-gray-700 bg-gray-50 rounded p-3 max-h-64 overflow-y-auto prose prose-sm">%s</div>
 			<button type="button"
 				onclick="if(window._markdownEditor){window._markdownEditor.value(%s)}else{document.getElementById('body').value=%s}; document.getElementById('body').dispatchEvent(new Event('input'))"
 				class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition-colors">
 				Apply to Content
 			</button>
 		</div>`,
-		result,
+		previewHTML,
 		quoteJSString(result),
 		quoteJSString(result),
 	)
@@ -478,15 +485,20 @@ Output ONLY the rewritten content, nothing else.`, toneDesc)
 
 	result = strings.TrimSpace(result)
 
+	rewriteHTML, err := markdown.ToHTML(result)
+	if err != nil {
+		rewriteHTML = html.EscapeString(result)
+	}
+
 	fragment := fmt.Sprintf(
 		`<div class="space-y-2">
-			<div class="text-xs text-gray-700 bg-gray-50 rounded p-2 max-h-48 overflow-y-auto whitespace-pre-wrap">%s</div>
+			<div class="ai-preview text-gray-700 bg-gray-50 rounded p-2 max-h-64 overflow-y-auto prose prose-sm">%s</div>
 			<button type="button" onclick="if(window._markdownEditor){window._markdownEditor.value(%s)}else{document.getElementById('body').value=%s}"
 				class="w-full rounded-md bg-indigo-50 border border-indigo-200 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition-colors">
 				Apply to Content
 			</button>
 		</div>`,
-		html.EscapeString(result),
+		rewriteHTML,
 		quoteJSString(result),
 		quoteJSString(result),
 	)
