@@ -144,3 +144,24 @@ func (c *Client) PublicBucket() string {
 func (c *Client) PrivateBucket() string {
 	return c.privateBucket
 }
+
+// ExtractS3Key extracts the S3 object key from a public file URL.
+// Returns the key and true if the URL matches the storage URL pattern,
+// or ("", false) if it doesn't belong to this storage.
+func (c *Client) ExtractS3Key(rawURL string) (string, bool) {
+	// Try publicURL prefix first (CDN or custom domain).
+	if c.publicURL != "" {
+		prefix := c.publicURL + "/"
+		if strings.HasPrefix(rawURL, prefix) {
+			return rawURL[len(prefix):], true
+		}
+	}
+
+	// Try endpoint/bucket prefix (path-style S3).
+	prefix := c.endpoint + "/" + c.publicBucket + "/"
+	if strings.HasPrefix(rawURL, prefix) {
+		return rawURL[len(prefix):], true
+	}
+
+	return "", false
+}

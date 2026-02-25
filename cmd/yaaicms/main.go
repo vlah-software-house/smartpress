@@ -133,6 +133,11 @@ func main() {
 	// Initialize the dynamic template engine for public page rendering.
 	eng := engine.New(templateStore)
 
+	// Enable responsive srcset rewriting for inline content images when S3 is available.
+	if storageClient != nil {
+		eng.SetMediaDeps(mediaStore, variantStore, storageClient)
+	}
+
 	// Initialize the L2 page cache (full-page HTML in Valkey).
 	pageCache := cache.NewPageCache(valkeyClient, cache.DefaultPageTTL)
 
