@@ -1,6 +1,6 @@
 # Responsive Image Optimization with libvips
 
-**Date:** 2025-02-25
+**Date:** 2026-02-25
 **Branch:** feat/responsive-image-optimization
 
 ## Summary
@@ -42,3 +42,18 @@ Templates receive `FeaturedImageSrcset` as a pre-built string:
 /media/2026/02/uuid_sm.webp 640w, /media/2026/02/uuid_md.webp 1024w, /media/2026/02/uuid_lg.webp 1920w
 ```
 Authors use: `<img src="{{.FeaturedImageURL}}" srcset="{{.FeaturedImageSrcset}}" sizes="..." alt="{{.FeaturedImageAlt}}">`
+
+### Additional changes (deployment session)
+- `internal/imaging/imaging.go` — Fixed GLib height=0 warnings by passing large height to `NewThumbnailFromBuffer`
+- `internal/handlers/admin_ai.go` — Updated `buildTemplateSystemPrompt()` and `buildPreviewData()` with `FeaturedImageSrcset` and `FeaturedImageAlt` variables
+- `internal/render/templates/admin/template_form.html` — Listed srcset/alt in available variables reference
+- `internal/render/templates/admin/template_ai.html` — Listed srcset/alt in AI generation template type help
+
+### Deployment & testing
+- Deployed to K8s testing cluster with filesystem-backed registry (Hetzner S3 outage workaround)
+- Migration `00010_create_media_variants` applied successfully on remote DB
+- libvips 8.15.3 confirmed running in container
+- Bulk regeneration tested: 4/5 existing images got WebP variants (1 failed due to S3 intermittency)
+- Compression verified: 3.2MB PNG → 333KB lg WebP, 133KB md, 62KB sm, ~7KB thumb
+- Homepage srcset confirmed in HTML output: `<img srcset="..._sm.webp 640w, ..._md.webp 1024w, ..._lg.webp 1792w">`
+- Article loop template updated to use `{{.FeaturedImageSrcset}}` and `{{.FeaturedImageAlt}}`
