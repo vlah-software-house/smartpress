@@ -1,0 +1,351 @@
+{{/* Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me> */}}
+{{/* Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh> */}}
+{{/* All rights reserved. See LICENSE for details. */}}
+{{define "title"}}Categories{{end}}
+
+{{define "categoryNode"}}
+{{range .}}
+<div class="category-item rounded-md border border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors"
+     data-id="{{.ID}}">
+    <div class="flex items-center gap-2 px-3 py-2">
+        <!-- Drag handle -->
+        <span class="drag-handle cursor-grab text-gray-400 hover:text-gray-600 flex-shrink-0">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+        </span>
+
+        <!-- Category info -->
+        <div class="flex-1 min-w-0">
+            <span class="text-sm font-medium text-gray-900">{{.Name}}</span>
+            <span class="ml-2 text-xs text-gray-400">/{{.Slug}}</span>
+        </div>
+
+        <!-- Post count -->
+        <span class="text-xs text-gray-500 flex-shrink-0">{{.PostCount}} posts</span>
+
+        <!-- Actions -->
+        <button @click="editCategory = {id: '{{.ID}}', name: '{{.Name}}', slug: '{{.Slug}}', description: '{{.Description}}'}"
+                class="text-xs text-indigo-600 hover:text-indigo-800 flex-shrink-0">Edit</button>
+        <button @click="if(confirm('Delete category \'{{.Name}}\'? Posts will be uncategorized.')) deleteCategory('{{.ID}}')"
+                class="text-xs text-red-600 hover:text-red-800 flex-shrink-0">Delete</button>
+    </div>
+
+    <!-- Children (nested sortable) -->
+    <div class="category-sortable ml-6 space-y-1 {{if .Children}}pb-1{{end}}"
+         data-parent-id="{{.ID}}">
+        {{if .Children}}
+        {{template "categoryNode" .Children}}
+        {{end}}
+    </div>
+</div>
+{{end}}
+{{end}}
+
+{{define "content"}}
+<!-- SortableJS for drag & drop -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+
+<div x-data="categoryManager()" class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-xl font-semibold text-gray-900">Categories</h2>
+            <p class="mt-1 text-sm text-gray-500">Organize your posts into hierarchical categories.</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <button x-show="orderChanged" x-transition
+                    @click="saveOrder()"
+                    :disabled="saving"
+                    class="inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-500 disabled:opacity-50 transition-colors">
+                <svg x-show="!saving" class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+                <svg x-show="saving" class="mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                Save Order
+            </button>
+            <button @click="showAddForm = !showAddForm"
+                    class="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500 transition-colors">
+                <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Add Category
+            </button>
+        </div>
+    </div>
+
+    <!-- Add Category Form -->
+    <div x-show="showAddForm" x-transition
+         class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 class="text-sm font-semibold text-gray-900 mb-4">New Category</h3>
+        <form @submit.prevent="createCategory()" class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input type="text" x-model="newCategory.name" required
+                           class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                                  focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                           placeholder="e.g. Technology">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Slug <span class="font-normal text-gray-400">(auto-generated if empty)</span>
+                    </label>
+                    <input type="text" x-model="newCategory.slug"
+                           class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                                  focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                           placeholder="technology">
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <input type="text" x-model="newCategory.description"
+                       class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                              focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                       placeholder="Optional description">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Parent Category</label>
+                <select x-model="newCategory.parent_id"
+                        class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                               focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+                    <option value="">None (top-level)</option>
+                    <template x-for="opt in flatOptions()" :key="opt.id">
+                        <option :value="opt.id" x-text="opt.label"></option>
+                    </template>
+                </select>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button type="button" @click="showAddForm = false"
+                        class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Cancel
+                </button>
+                <button type="submit" :disabled="!newCategory.name.trim() || creating"
+                        class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50">
+                    Create
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Category Tree -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+        {{if .Data.Tree}}
+        <div class="p-2">
+            <div id="category-tree" class="category-sortable space-y-1">
+                {{template "categoryNode" .Data.Tree}}
+            </div>
+        </div>
+        {{else}}
+        <div class="px-6 py-12 text-center text-sm text-gray-500">
+            No categories yet. Create your first category to organize your posts.
+        </div>
+        {{end}}
+    </div>
+
+    <!-- Edit Modal -->
+    <div x-show="editCategory" x-transition.opacity
+         class="fixed inset-0 z-50 flex items-center justify-center bg-gray-600 bg-opacity-50"
+         @click.self="editCategory = null">
+        <div class="bg-white rounded-lg shadow-xl border border-gray-200 p-6 w-full max-w-md" @click.stop>
+            <h3 class="text-sm font-semibold text-gray-900 mb-4">Edit Category</h3>
+            <template x-if="editCategory">
+                <form @submit.prevent="updateCategory()" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                        <input type="text" x-model="editCategory.name" required
+                               class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                                      focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Slug</label>
+                        <input type="text" x-model="editCategory.slug"
+                               class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                                      focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <input type="text" x-model="editCategory.description"
+                               class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                                      focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button type="button" @click="editCategory = null"
+                                class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                            Cancel
+                        </button>
+                        <button type="submit"
+                                class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                            Save
+                        </button>
+                    </div>
+                </form>
+            </template>
+        </div>
+    </div>
+</div>
+
+<script>
+function categoryManager() {
+    return {
+        showAddForm: false,
+        orderChanged: false,
+        saving: false,
+        creating: false,
+        editCategory: null,
+        newCategory: { name: '', slug: '', description: '', parent_id: '' },
+        sortables: [],
+
+        init() {
+            this.$nextTick(() => this.initSortables());
+        },
+
+        initSortables() {
+            // Clean up existing sortables.
+            this.sortables.forEach(s => s.destroy());
+            this.sortables = [];
+
+            document.querySelectorAll('.category-sortable').forEach(el => {
+                const s = new Sortable(el, {
+                    group: 'categories',
+                    animation: 150,
+                    handle: '.drag-handle',
+                    fallbackOnBody: true,
+                    swapThreshold: 0.65,
+                    ghostClass: 'opacity-30',
+                    onEnd: () => { this.orderChanged = true; }
+                });
+                this.sortables.push(s);
+            });
+        },
+
+        flatOptions() {
+            // Build flat list with indentation from the DOM tree.
+            const result = [];
+            const walk = (container, depth) => {
+                container.querySelectorAll(':scope > .category-item').forEach(item => {
+                    const id = item.dataset.id;
+                    const name = item.querySelector('.text-sm.font-medium')?.textContent?.trim();
+                    if (id && name) {
+                        result.push({ id, label: '\u00A0\u00A0'.repeat(depth) + name });
+                    }
+                    const children = item.querySelector('.category-sortable');
+                    if (children) walk(children, depth + 1);
+                });
+            };
+            const root = document.getElementById('category-tree');
+            if (root) walk(root, 0);
+            return result;
+        },
+
+        collectOrder() {
+            const items = [];
+            const walk = (container, parentId) => {
+                container.querySelectorAll(':scope > .category-item').forEach((item, idx) => {
+                    const id = item.dataset.id;
+                    items.push({ id, parent_id: parentId || null, order: idx });
+                    const children = item.querySelector('.category-sortable');
+                    if (children) walk(children, id);
+                });
+            };
+            const root = document.getElementById('category-tree');
+            if (root) walk(root, null);
+            return items;
+        },
+
+        async saveOrder() {
+            this.saving = true;
+            try {
+                const items = this.collectOrder();
+                const csrfToken = document.querySelector('[name="csrf_token"]')?.value ||
+                                  document.body.getAttribute('hx-headers')?.match(/"X-CSRF-Token":\s*"([^"]+)"/)?.[1];
+                await fetch('/admin/categories/reorder', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
+                    body: JSON.stringify(items)
+                });
+                this.orderChanged = false;
+            } catch (e) {
+                alert('Failed to save order');
+            }
+            this.saving = false;
+        },
+
+        async createCategory() {
+            this.creating = true;
+            const form = new FormData();
+            form.append('name', this.newCategory.name);
+            form.append('slug', this.newCategory.slug);
+            form.append('description', this.newCategory.description);
+            form.append('parent_id', this.newCategory.parent_id);
+
+            const csrfToken = document.body.getAttribute('hx-headers')?.match(/"X-CSRF-Token":\s*"([^"]+)"/)?.[1];
+            form.append('csrf_token', csrfToken);
+
+            try {
+                const resp = await fetch('/admin/categories', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrfToken },
+                    body: form
+                });
+                if (resp.ok) {
+                    // Reload the page to show the new category in the tree.
+                    window.location.reload();
+                } else {
+                    alert('Failed to create category. Slug may already exist.');
+                }
+            } catch (e) {
+                alert('Request failed');
+            }
+            this.creating = false;
+        },
+
+        async updateCategory() {
+            const cat = this.editCategory;
+            const form = new FormData();
+            form.append('name', cat.name);
+            form.append('slug', cat.slug);
+            form.append('description', cat.description);
+
+            const csrfToken = document.body.getAttribute('hx-headers')?.match(/"X-CSRF-Token":\s*"([^"]+)"/)?.[1];
+            form.append('csrf_token', csrfToken);
+
+            try {
+                const resp = await fetch('/admin/categories/' + cat.id, {
+                    method: 'PUT',
+                    headers: { 'X-CSRF-Token': csrfToken },
+                    body: form
+                });
+                if (resp.ok) {
+                    window.location.reload();
+                } else {
+                    alert('Failed to update category');
+                }
+            } catch (e) {
+                alert('Request failed');
+            }
+        },
+
+        async deleteCategory(id) {
+            const csrfToken = document.body.getAttribute('hx-headers')?.match(/"X-CSRF-Token":\s*"([^"]+)"/)?.[1];
+            try {
+                const resp = await fetch('/admin/categories/' + id, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-Token': csrfToken }
+                });
+                if (resp.ok) {
+                    window.location.reload();
+                }
+            } catch (e) {
+                alert('Request failed');
+            }
+        }
+    };
+}
+</script>
+{{end}}

@@ -15,8 +15,8 @@ import (
 
 // revisionColumns lists all columns for content_revisions SELECTs.
 const revisionColumns = `id, content_id, title, slug, body, body_format, excerpt,
-	status, meta_description, meta_keywords, featured_image_id, revision_title,
-	revision_log, created_by, created_at`
+	status, meta_description, meta_keywords, featured_image_id, category_id,
+	revision_title, revision_log, created_by, created_at`
 
 // RevisionStore provides access to content revision data in PostgreSQL.
 type RevisionStore struct {
@@ -34,7 +34,7 @@ func scanRevision(scanner interface{ Scan(...any) error }) (*models.ContentRevis
 	err := scanner.Scan(
 		&r.ID, &r.ContentID, &r.Title, &r.Slug, &r.Body, &r.BodyFormat,
 		&r.Excerpt, &r.Status, &r.MetaDescription, &r.MetaKeywords,
-		&r.FeaturedImageID, &r.RevisionTitle, &r.RevisionLog, &r.CreatedBy, &r.CreatedAt,
+		&r.FeaturedImageID, &r.CategoryID, &r.RevisionTitle, &r.RevisionLog, &r.CreatedBy, &r.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -47,13 +47,13 @@ func (s *RevisionStore) Create(rev *models.ContentRevision) (*models.ContentRevi
 	row := s.db.QueryRow(`
 		INSERT INTO content_revisions (
 			content_id, title, slug, body, body_format, excerpt, status,
-			meta_description, meta_keywords, featured_image_id,
+			meta_description, meta_keywords, featured_image_id, category_id,
 			revision_title, revision_log, created_by
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		RETURNING `+revisionColumns,
 		rev.ContentID, rev.Title, rev.Slug, rev.Body, rev.BodyFormat, rev.Excerpt,
 		rev.Status, rev.MetaDescription, rev.MetaKeywords, rev.FeaturedImageID,
-		rev.RevisionTitle, rev.RevisionLog, rev.CreatedBy,
+		rev.CategoryID, rev.RevisionTitle, rev.RevisionLog, rev.CreatedBy,
 	)
 	return scanRevision(row)
 }

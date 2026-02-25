@@ -27,7 +27,7 @@ func NewContentStore(db *sql.DB) *ContentStore {
 
 // contentColumns lists the columns selected in content queries.
 const contentColumns = `id, type, title, slug, body, body_format, excerpt, status,
-	meta_description, meta_keywords, featured_image_id, author_id,
+	meta_description, meta_keywords, featured_image_id, category_id, author_id,
 	published_at, created_at, updated_at`
 
 // scanContent scans a content row into a Content struct.
@@ -36,7 +36,7 @@ func scanContent(scanner interface{ Scan(...any) error }) (*models.Content, erro
 	err := scanner.Scan(
 		&c.ID, &c.Type, &c.Title, &c.Slug, &c.Body, &c.BodyFormat,
 		&c.Excerpt, &c.Status, &c.MetaDescription, &c.MetaKeywords,
-		&c.FeaturedImageID, &c.AuthorID, &c.PublishedAt, &c.CreatedAt, &c.UpdatedAt,
+		&c.FeaturedImageID, &c.CategoryID, &c.AuthorID, &c.PublishedAt, &c.CreatedAt, &c.UpdatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -108,12 +108,12 @@ func (s *ContentStore) Create(c *models.Content) (*models.Content, error) {
 	row := s.db.QueryRow(`
 		INSERT INTO content (type, title, slug, body, body_format, excerpt, status,
 		                     meta_description, meta_keywords, featured_image_id,
-		                     author_id, published_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		                     category_id, author_id, published_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING `+contentColumns,
 		c.Type, c.Title, c.Slug, c.Body, c.BodyFormat, c.Excerpt, c.Status,
 		c.MetaDescription, c.MetaKeywords, c.FeaturedImageID,
-		c.AuthorID, c.PublishedAt,
+		c.CategoryID, c.AuthorID, c.PublishedAt,
 	)
 	result, err := scanContent(row)
 	if err != nil {
@@ -134,11 +134,12 @@ func (s *ContentStore) Update(c *models.Content) error {
 		UPDATE content SET
 			title = $1, slug = $2, body = $3, body_format = $4, excerpt = $5,
 			status = $6, meta_description = $7, meta_keywords = $8,
-			featured_image_id = $9, published_at = $10, updated_at = NOW()
-		WHERE id = $11
+			featured_image_id = $9, category_id = $10, published_at = $11,
+			updated_at = NOW()
+		WHERE id = $12
 	`, c.Title, c.Slug, c.Body, c.BodyFormat, c.Excerpt, c.Status,
 		c.MetaDescription, c.MetaKeywords, c.FeaturedImageID,
-		c.PublishedAt, c.ID,
+		c.CategoryID, c.PublishedAt, c.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("update content: %w", err)

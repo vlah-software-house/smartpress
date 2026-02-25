@@ -48,6 +48,7 @@ type Content struct {
 	MetaDescription *string       `json:"meta_description,omitempty"`
 	MetaKeywords    *string       `json:"meta_keywords,omitempty"`
 	FeaturedImageID *uuid.UUID    `json:"featured_image_id,omitempty"`
+	CategoryID      *uuid.UUID    `json:"category_id,omitempty"`
 	AuthorID        uuid.UUID     `json:"author_id"`
 	PublishedAt     *time.Time    `json:"published_at,omitempty"`
 	CreatedAt       time.Time     `json:"created_at"`
@@ -73,6 +74,7 @@ type ContentRevision struct {
 	MetaDescription *string    `json:"meta_description,omitempty"`
 	MetaKeywords    *string    `json:"meta_keywords,omitempty"`
 	FeaturedImageID *uuid.UUID `json:"featured_image_id,omitempty"`
+	CategoryID      *uuid.UUID `json:"category_id,omitempty"`
 	RevisionTitle   string     `json:"revision_title"`
 	RevisionLog     string     `json:"revision_log"`
 	CreatedBy       uuid.UUID  `json:"created_by"`

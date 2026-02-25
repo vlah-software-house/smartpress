@@ -14,6 +14,9 @@ import (
 	"io"
 	"net/http"
 	"path/filepath"
+	"strings"
+
+	"github.com/google/uuid"
 
 	"yaaicms/internal/middleware"
 	"yaaicms/internal/session"
@@ -77,6 +80,19 @@ func New(devMode bool) (*Renderer, error) {
 			// Used by templates to conditionally load CDN vs local assets.
 			"isDev": func() bool {
 				return devMode
+			},
+			// catIndent returns a category name with non-breaking space indentation
+			// based on depth. Used for hierarchical <select> dropdowns.
+			"catIndent": func(depth int, name string) string {
+				if depth == 0 {
+					return name
+				}
+				return strings.Repeat("\u00A0\u00A0\u00A0\u00A0", depth) + name
+			},
+			// uuidEq compares a *uuid.UUID pointer with a uuid.UUID value.
+			// Returns true if the pointer is non-nil and points to the same value.
+			"uuidEq": func(ptr *uuid.UUID, val uuid.UUID) bool {
+				return ptr != nil && *ptr == val
 			},
 		},
 	}

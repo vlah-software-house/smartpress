@@ -128,6 +128,15 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 			r.Post("/template-revisions/{revisionID}/restore", admin.TemplateRevisionRestore)
 			r.Put("/template-revisions/{revisionID}/title", admin.TemplateRevisionUpdateTitle)
 
+			// Categories
+			r.Route("/categories", func(r chi.Router) {
+				r.Get("/", admin.CategoriesList)
+				r.Post("/", admin.CategoryCreate)
+				r.Put("/{id}", admin.CategoryUpdate)
+				r.Delete("/{id}", admin.CategoryDelete)
+				r.Post("/reorder", admin.CategoryReorder)
+			})
+
 			// User management — admin only
 			r.Route("/users", func(r chi.Router) {
 				r.Use(middleware.RequireAdmin)

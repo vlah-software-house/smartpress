@@ -9,6 +9,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"html"
 	"log/slog"
@@ -62,6 +63,7 @@ type Admin struct {
 	templateRevisionStore *store.TemplateRevisionStore
 	themeStore            *store.DesignThemeStore
 	siteSettingStore      *store.SiteSettingStore
+	categoryStore         *store.CategoryStore
 	storageClient         *storage.Client
 	engine                *engine.Engine
 	pageCache             *cache.PageCache
@@ -72,7 +74,7 @@ type Admin struct {
 
 // NewAdmin creates a new Admin handler group with the given dependencies.
 // storageClient, mediaStore, and variantStore may be nil if S3 is not configured.
-func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, mediaStore *store.MediaStore, variantStore *store.VariantStore, revisionStore *store.RevisionStore, templateRevisionStore *store.TemplateRevisionStore, themeStore *store.DesignThemeStore, siteSettingStore *store.SiteSettingStore, storageClient *storage.Client, eng *engine.Engine, pageCache *cache.PageCache, cacheLog *store.CacheLogStore, aiRegistry *ai.Registry, aiCfg *AIConfig) *Admin {
+func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, mediaStore *store.MediaStore, variantStore *store.VariantStore, revisionStore *store.RevisionStore, templateRevisionStore *store.TemplateRevisionStore, themeStore *store.DesignThemeStore, siteSettingStore *store.SiteSettingStore, categoryStore *store.CategoryStore, storageClient *storage.Client, eng *engine.Engine, pageCache *cache.PageCache, cacheLog *store.CacheLogStore, aiRegistry *ai.Registry, aiCfg *AIConfig) *Admin {
 	return &Admin{
 		renderer:              renderer,
 		sessions:              sessions,
@@ -85,6 +87,7 @@ func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *
 		templateRevisionStore: templateRevisionStore,
 		themeStore:            themeStore,
 		siteSettingStore:      siteSettingStore,
+		categoryStore:         categoryStore,
 		storageClient:         storageClient,
 		engine:                eng,
 		pageCache:             pageCache,
@@ -134,12 +137,14 @@ func (a *Admin) PostsList(w http.ResponseWriter, r *http.Request) {
 
 // PostNew renders the new post form.
 func (a *Admin) PostNew(w http.ResponseWriter, r *http.Request) {
+	categories, _ := a.categoryStore.FlatTree()
 	a.renderer.Page(w, r, "content_form", &render.PageData{
 		Title:   "New Post",
 		Section: "posts",
 		Data: map[string]any{
 			"ContentType": "post",
 			"IsNew":       true,
+			"Categories":  categories,
 		},
 	})
 }
@@ -296,6 +301,9 @@ func (a *Admin) createContent(w http.ResponseWriter, r *http.Request, contentTyp
 	if fid, err := uuid.Parse(featuredImageIDStr); err == nil {
 		c.FeaturedImageID = &fid
 	}
+	if catID, err := uuid.Parse(r.FormValue("category_id")); err == nil {
+		c.CategoryID = &catID
+	}
 
 	created, err := a.contentStore.Create(c)
 	if err != nil {
@@ -375,6 +383,12 @@ func (a *Admin) editContent(w http.ResponseWriter, r *http.Request, section stri
 	}
 	data["Revisions"] = revisions
 
+	// Load categories for the category selector (posts only).
+	if contentType == "post" {
+		categories, _ := a.categoryStore.FlatTree()
+		data["Categories"] = categories
+	}
+
 	a.renderer.Page(w, r, "content_form", &render.PageData{
 		Title:   title,
 		Section: section,
@@ -407,6 +421,7 @@ func (a *Admin) updateContent(w http.ResponseWriter, r *http.Request, section st
 	oldMetaDesc := item.MetaDescription
 	oldMetaKw := item.MetaKeywords
 	oldFeaturedImageID := item.FeaturedImageID
+	oldCategoryID := item.CategoryID
 
 	title := r.FormValue("title")
 	body := r.FormValue("body")
@@ -486,6 +501,13 @@ func (a *Admin) updateContent(w http.ResponseWriter, r *http.Request, section st
 		item.FeaturedImageID = nil
 	}
 
+	// Update category (posts only).
+	if catID, err := uuid.Parse(r.FormValue("category_id")); err == nil {
+		item.CategoryID = &catID
+	} else {
+		item.CategoryID = nil
+	}
+
 	// Create revision snapshot of the OLD state before persisting changes.
 	sess := middleware.SessionFromCtx(r.Context())
 	rev := &models.ContentRevision{
@@ -499,6 +521,7 @@ func (a *Admin) updateContent(w http.ResponseWriter, r *http.Request, section st
 		MetaDescription: oldMetaDesc,
 		MetaKeywords:    oldMetaKw,
 		FeaturedImageID: oldFeaturedImageID,
+		CategoryID:      oldCategoryID,
 		RevisionTitle:   revisionMessage,
 		CreatedBy:       sess.UserID,
 	}
@@ -652,6 +675,7 @@ func (a *Admin) RevisionRestore(w http.ResponseWriter, r *http.Request) {
 		MetaDescription: item.MetaDescription,
 		MetaKeywords:    item.MetaKeywords,
 		FeaturedImageID: item.FeaturedImageID,
+		CategoryID:      item.CategoryID,
 		RevisionTitle:   "Before restore",
 		RevisionLog:     fmt.Sprintf("- State before restoring to revision from %s", rev.CreatedAt.Format("Jan 2, 2006 15:04")),
 		CreatedBy:       sess.UserID,
@@ -670,6 +694,7 @@ func (a *Admin) RevisionRestore(w http.ResponseWriter, r *http.Request) {
 	item.MetaDescription = rev.MetaDescription
 	item.MetaKeywords = rev.MetaKeywords
 	item.FeaturedImageID = rev.FeaturedImageID
+	item.CategoryID = rev.CategoryID
 
 	if err := a.contentStore.Update(item); err != nil {
 		slog.Error("restore revision failed", "error", err)
@@ -1390,4 +1415,134 @@ func (a *Admin) SettingsSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/admin/settings", http.StatusSeeOther)
+}
+
+// --- Categories ---
+
+// CategoriesList renders the category manager page.
+func (a *Admin) CategoriesList(w http.ResponseWriter, r *http.Request) {
+	tree, err := a.categoryStore.Tree()
+	if err != nil {
+		slog.Error("list categories failed", "error", err)
+	}
+
+	a.renderer.Page(w, r, "categories", &render.PageData{
+		Title:   "Categories",
+		Section: "categories",
+		Data:    map[string]any{"Tree": tree},
+	})
+}
+
+// CategoryCreate handles creating a new category.
+func (a *Admin) CategoryCreate(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(r.FormValue("name"))
+	catSlug := strings.TrimSpace(r.FormValue("slug"))
+	description := strings.TrimSpace(r.FormValue("description"))
+	parentIDStr := r.FormValue("parent_id")
+
+	if name == "" {
+		http.Error(w, "Name is required", http.StatusBadRequest)
+		return
+	}
+
+	if catSlug == "" {
+		catSlug = slug.Generate(name)
+	}
+
+	cat := &models.Category{
+		Name:        name,
+		Slug:        catSlug,
+		Description: description,
+	}
+
+	if pid, err := uuid.Parse(parentIDStr); err == nil {
+		cat.ParentID = &pid
+	}
+
+	nextOrder, _ := a.categoryStore.NextSortOrder(cat.ParentID)
+	cat.SortOrder = nextOrder
+
+	if _, err := a.categoryStore.Create(cat); err != nil {
+		slog.Error("create category failed", "error", err)
+		http.Error(w, "Failed to create category. Slug may already exist.", http.StatusConflict)
+		return
+	}
+
+	// Return the full category list for HTMX swap.
+	a.CategoriesList(w, r)
+}
+
+// CategoryUpdate handles updating an existing category.
+func (a *Admin) CategoryUpdate(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	cat, err := a.categoryStore.FindByID(id)
+	if err != nil || cat == nil {
+		http.Error(w, "Category not found", http.StatusNotFound)
+		return
+	}
+
+	name := strings.TrimSpace(r.FormValue("name"))
+	if name == "" {
+		http.Error(w, "Name is required", http.StatusBadRequest)
+		return
+	}
+
+	cat.Name = name
+	cat.Description = strings.TrimSpace(r.FormValue("description"))
+
+	newSlug := strings.TrimSpace(r.FormValue("slug"))
+	if newSlug != "" {
+		cat.Slug = newSlug
+	}
+
+	if err := a.categoryStore.Update(cat); err != nil {
+		slog.Error("update category failed", "error", err)
+		http.Error(w, "Failed to update category", http.StatusInternalServerError)
+		return
+	}
+
+	a.CategoriesList(w, r)
+}
+
+// CategoryDelete handles deleting a category.
+func (a *Admin) CategoryDelete(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := a.categoryStore.Delete(id); err != nil {
+		slog.Error("delete category failed", "error", err)
+		http.Error(w, "Failed to delete category", http.StatusInternalServerError)
+		return
+	}
+
+	a.CategoriesList(w, r)
+}
+
+// CategoryReorder handles the drag & drop reorder request (JSON body).
+func (a *Admin) CategoryReorder(w http.ResponseWriter, r *http.Request) {
+	var items []store.ReorderItem
+	if err := json.NewDecoder(r.Body).Decode(&items); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if err := a.categoryStore.Reorder(items); err != nil {
+		slog.Error("reorder categories failed", "error", err)
+		http.Error(w, "Failed to reorder", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"ok":true}`))
 }
