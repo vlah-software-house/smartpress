@@ -22,7 +22,7 @@
     <div class="w-full max-w-sm mx-auto">
         <div class="text-center mb-8">
             <h1 class="text-3xl font-bold text-gray-900 tracking-tight">
-                <span class="text-indigo-600">Smart</span>Press
+                <span class="text-indigo-600">Yaai</span>CMS
             </h1>
             <p class="mt-2 text-sm text-gray-600">Enter your authenticator code to continue</p>
         </div>
@@ -34,9 +34,7 @@
             </div>
             {{end}}
 
-            <form method="POST" action="/admin/2fa/verify"
-                  hx-post="/admin/2fa/verify"
-                  hx-target="body">
+            <form method="POST" action="/admin/2fa/verify">
                 <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
 
                 <div class="space-y-4">
