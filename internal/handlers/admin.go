@@ -61,6 +61,7 @@ type Admin struct {
 	revisionStore         *store.RevisionStore
 	templateRevisionStore *store.TemplateRevisionStore
 	themeStore            *store.DesignThemeStore
+	siteSettingStore      *store.SiteSettingStore
 	storageClient         *storage.Client
 	engine                *engine.Engine
 	pageCache             *cache.PageCache
@@ -71,7 +72,7 @@ type Admin struct {
 
 // NewAdmin creates a new Admin handler group with the given dependencies.
 // storageClient, mediaStore, and variantStore may be nil if S3 is not configured.
-func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, mediaStore *store.MediaStore, variantStore *store.VariantStore, revisionStore *store.RevisionStore, templateRevisionStore *store.TemplateRevisionStore, themeStore *store.DesignThemeStore, storageClient *storage.Client, eng *engine.Engine, pageCache *cache.PageCache, cacheLog *store.CacheLogStore, aiRegistry *ai.Registry, aiCfg *AIConfig) *Admin {
+func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, mediaStore *store.MediaStore, variantStore *store.VariantStore, revisionStore *store.RevisionStore, templateRevisionStore *store.TemplateRevisionStore, themeStore *store.DesignThemeStore, siteSettingStore *store.SiteSettingStore, storageClient *storage.Client, eng *engine.Engine, pageCache *cache.PageCache, cacheLog *store.CacheLogStore, aiRegistry *ai.Registry, aiCfg *AIConfig) *Admin {
 	return &Admin{
 		renderer:              renderer,
 		sessions:              sessions,
@@ -83,6 +84,7 @@ func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *
 		revisionStore:         revisionStore,
 		templateRevisionStore: templateRevisionStore,
 		themeStore:            themeStore,
+		siteSettingStore:      siteSettingStore,
 		storageClient:         storageClient,
 		engine:                eng,
 		pageCache:             pageCache,
@@ -1340,13 +1342,53 @@ func (a *Admin) invalidateAllTemplateCache(ctx context.Context, templateID uuid.
 	a.cacheLog.Log("template", templateID, action)
 }
 
-// SettingsPage renders the settings page.
+// SettingsPage renders the settings page with site configuration and AI provider info.
 func (a *Admin) SettingsPage(w http.ResponseWriter, r *http.Request) {
+	settings, err := a.siteSettingStore.All()
+	if err != nil {
+		slog.Error("failed to load site settings", "error", err)
+		settings = make(models.SiteSettings)
+	}
+
 	a.renderer.Page(w, r, "settings", &render.PageData{
 		Title:   "Settings",
 		Section: "settings",
 		Data: map[string]any{
 			"Providers": a.aiConfig.Providers,
+			"Settings":  settings,
 		},
 	})
+}
+
+// SettingsSave handles POST /admin/settings to update site configuration.
+func (a *Admin) SettingsSave(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	updates := map[string]string{
+		"site_title":     r.FormValue("site_title"),
+		"site_tagline":   r.FormValue("site_tagline"),
+		"timezone":       r.FormValue("timezone"),
+		"language":       r.FormValue("language"),
+		"date_format":    r.FormValue("date_format"),
+		"posts_per_page": r.FormValue("posts_per_page"),
+		"site_url":       strings.TrimRight(r.FormValue("site_url"), "/"),
+	}
+
+	if err := a.siteSettingStore.SetMany(updates); err != nil {
+		slog.Error("failed to save site settings", "error", err)
+		http.Error(w, "failed to save settings", http.StatusInternalServerError)
+		return
+	}
+
+	slog.Info("site settings updated")
+
+	// Reload the page to show saved values.
+	if r.Header.Get("HX-Request") == "true" {
+		a.SettingsPage(w, r)
+		return
+	}
+	http.Redirect(w, r, "/admin/settings", http.StatusSeeOther)
 }
