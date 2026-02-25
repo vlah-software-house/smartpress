@@ -175,13 +175,27 @@ func (a *Admin) AIGenerateImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return HTML fragment with preview and "Use" button.
+	// Build image URLs for the response.
 	imgURL := a.storageClient.FileURL(created.S3Key)
 	var thumbURL string
 	if created.ThumbS3Key != nil {
 		thumbURL = a.storageClient.FileURL(*created.ThumbS3Key)
 	} else {
 		thumbURL = imgURL
+	}
+
+	// Return JSON when the client requests it (used by the media picker modal),
+	// otherwise return an HTML fragment (used by the featured image HTMX flow).
+	if strings.Contains(r.Header.Get("Accept"), "application/json") {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"id":        created.ID.String(),
+			"url":       imgURL,
+			"thumb_url": thumbURL,
+			"filename":  created.OriginalName,
+			"alt_text":  altText,
+		})
+		return
 	}
 
 	fragment := fmt.Sprintf(
