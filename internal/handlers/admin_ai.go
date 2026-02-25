@@ -20,6 +20,7 @@ import (
 	"yaaicms/internal/middleware"
 	"yaaicms/internal/models"
 	"yaaicms/internal/render"
+	"yaaicms/internal/slug"
 )
 
 // --- AI Assistant Endpoints ---
@@ -154,11 +155,22 @@ func (a *Admin) AIGenerateImage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Create media record.
+	// Create media record. Derive a descriptive filename from the prompt.
 	altText := truncate(prompt, 500)
+	safeName := slug.Generate(prompt)
+	if len(safeName) > 80 {
+		safeName = safeName[:80]
+		// Trim at the last hyphen to avoid cutting a word in half.
+		if i := strings.LastIndex(safeName, "-"); i > 20 {
+			safeName = safeName[:i]
+		}
+	}
+	if safeName == "" {
+		safeName = "ai-generated"
+	}
 	media := &models.Media{
 		Filename:     fileID + ext,
-		OriginalName: "ai-generated" + ext,
+		OriginalName: safeName + ext,
 		ContentType:  contentType,
 		SizeBytes:    int64(len(imgBytes)),
 		Bucket:       bucket,
