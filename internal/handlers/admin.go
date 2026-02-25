@@ -955,7 +955,9 @@ func (a *Admin) TemplateDelete(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/templates", http.StatusSeeOther)
 }
 
-// TemplatePreview renders a preview of a template with dummy data.
+// TemplatePreview renders a preview of a template with data. Accepts optional
+// "template_type" (page, article_loop, header, footer) and "content_id" params
+// to render with type-appropriate structure and real content data.
 func (a *Admin) TemplatePreview(w http.ResponseWriter, r *http.Request) {
 	htmlContent := r.FormValue("html_content")
 	if htmlContent == "" {
@@ -963,17 +965,24 @@ func (a *Admin) TemplatePreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := engine.PageData{
-		SiteName:        "YaaiCMS",
-		Title:           "Preview Page Title",
-		Body:            "<p>This is preview content. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>",
-		Excerpt:         "A brief preview excerpt.",
-		MetaDescription: "Preview meta description",
-		Slug:            "preview-page",
-		PublishedAt:     "February 24, 2026",
-		Header:          "<header><nav>Header Preview</nav></header>",
-		Footer:          "<footer><p>Footer Preview</p></footer>",
-		Year:            2026,
+	tmplType := r.FormValue("template_type")
+	contentID := r.FormValue("content_id")
+
+	// Build preview data: use real content if a content_id was provided,
+	// then type-specific dummy data, then generic page data as fallback.
+	var data any
+	if contentID != "" {
+		if tmplType == "" {
+			tmplType = "page"
+		}
+		data = a.buildRealPreviewData(tmplType, contentID)
+	}
+	if data == nil {
+		if tmplType != "" {
+			data = buildPreviewData(tmplType)
+		} else {
+			data = buildPreviewData("page")
+		}
 	}
 
 	result, err := a.engine.ValidateAndRender(htmlContent, data)

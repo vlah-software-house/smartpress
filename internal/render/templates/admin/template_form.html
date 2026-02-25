@@ -170,13 +170,20 @@
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div class="flex items-center justify-between mb-2">
                 <label class="block text-sm font-medium text-gray-700">Live Preview</label>
-                <button type="button"
-                        hx-post="/admin/templates/preview"
-                        hx-target="#preview-frame"
-                        hx-include="[name='html_content']"
-                        class="text-sm text-indigo-600 hover:text-indigo-800">
-                    Refresh Preview
-                </button>
+                <div class="flex items-center gap-3">
+                    <select x-model="previewContentID" @change="refreshFormPreview()"
+                            class="rounded-md border border-gray-300 px-2 py-1 text-xs shadow-sm
+                                   focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+                        <option value="">Sample data</option>
+                        <template x-for="c in previewContent" :key="c.id">
+                            <option :value="c.id" x-text="c.title + ' (' + c.type + ')'"></option>
+                        </template>
+                    </select>
+                    <button type="button" @click="refreshFormPreview()"
+                            class="text-sm text-indigo-600 hover:text-indigo-800">
+                        Refresh Preview
+                    </button>
+                </div>
             </div>
             <div id="preview-frame" class="border border-gray-200 rounded-md bg-white min-h-[200px] p-4">
                 <p class="text-sm text-gray-400 text-center">Click "Refresh Preview" to see your template rendered with sample data.</p>
@@ -210,6 +217,33 @@ function templateEditor() {
         aiPrompt: '',
         aiMessages: [],
         aiLoading: false,
+        previewContentID: '',
+        previewContent: [],
+
+        init() {
+            this.loadPreviewContent();
+        },
+
+        async loadPreviewContent() {
+            try {
+                const resp = await fetch('/admin/ai/preview-content');
+                this.previewContent = await resp.json();
+            } catch (err) {
+                console.warn('Failed to load preview content:', err);
+                this.previewContent = [];
+            }
+        },
+
+        refreshFormPreview() {
+            const values = { html_content: this.$refs.editor.value, template_type: this.templateType };
+            if (this.previewContentID) {
+                values.content_id = this.previewContentID;
+            }
+            htmx.ajax('POST', '/admin/templates/preview', {
+                target: '#preview-frame',
+                values: values
+            });
+        },
 
         async aiImprove() {
             const text = this.aiPrompt.trim();
@@ -260,11 +294,8 @@ function templateEditor() {
                     }
                     this.aiMessages.push({ role: 'assistant', content: msg });
 
-                    // Auto-refresh preview.
-                    htmx.ajax('POST', '/admin/templates/preview', {
-                        target: '#preview-frame',
-                        values: { html_content: data.html }
-                    });
+                    // Auto-refresh preview with content selector context.
+                    this.refreshFormPreview();
                 } else {
                     this.aiMessages.push({ role: 'assistant', content: data.message || 'No changes were generated.' });
                 }

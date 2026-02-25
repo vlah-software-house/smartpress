@@ -222,10 +222,10 @@ func TestBuildTemplateSystemPrompt(t *testing.T) {
 		tmplType string
 		contains []string
 	}{
-		{"header", []string{"SiteName", "Year", "HEADER"}},
-		{"footer", []string{"SiteName", "Year", "FOOTER"}},
-		{"page", []string{"Title", "Body", "Header", "Footer", "MetaDescription", "PAGE"}},
-		{"article_loop", []string{"range .Posts", "Title", "Slug", "Excerpt", "ARTICLE LOOP"}},
+		{"header", []string{"SiteName", "Year", "TEMPLATE TYPE: Header"}},
+		{"footer", []string{"SiteName", "Year", "TEMPLATE TYPE: Footer"}},
+		{"page", []string{"Title", "Body", "Header", "Footer", "MetaDescription", "TEMPLATE TYPE: Page"}},
+		{"article_loop", []string{"range .Posts", "Title", "Slug", "Excerpt", "TEMPLATE TYPE: Article Loop"}},
 	}
 
 	for _, tt := range tests {

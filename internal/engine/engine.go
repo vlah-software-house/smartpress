@@ -309,6 +309,13 @@ func (e *Engine) compileAndRender(id string, version int, tmplContent string, da
 	return buf.Bytes(), nil
 }
 
+// RewriteBodyImages is the exported wrapper for rewriteBodyImages, allowing
+// other packages (e.g., admin handlers for preview) to apply the same
+// responsive srcset rewriting to content bodies.
+func (e *Engine) RewriteBodyImages(html string) string {
+	return e.rewriteBodyImages(html)
+}
+
 // imgSrcRe matches <img ... src="..." ...> tags and captures the full tag
 // and the src URL. It handles single and double quotes.
 var imgSrcRe = regexp.MustCompile(`<img\s([^>]*?)src=["']([^"']+)["']([^>]*)>`)

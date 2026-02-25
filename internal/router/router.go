@@ -148,6 +148,7 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 				r.Post("/extract-tags", admin.AIExtractTags)
 				r.Post("/generate-template", admin.AITemplateGenerate)
 				r.Post("/save-template", admin.AITemplateSave)
+				r.Get("/preview-content", admin.AIPreviewContentList)
 			})
 
 			// Settings

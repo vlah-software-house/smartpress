@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"html/template"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -18,10 +19,12 @@ import (
 
 	"yaaicms/internal/ai"
 	"yaaicms/internal/engine"
+	"yaaicms/internal/markdown"
 	"yaaicms/internal/middleware"
 	"yaaicms/internal/models"
 	"yaaicms/internal/render"
 	"yaaicms/internal/slug"
+	"yaaicms/internal/storage"
 )
 
 // --- AI Assistant Endpoints ---
@@ -862,10 +865,17 @@ func (a *Admin) AITemplateGenerate(w http.ResponseWriter, r *http.Request) {
 		validationErrStr = validationErr.Error()
 	}
 
-	// Generate a preview with dummy data.
+	// Generate a preview — use real content if a content_id was provided.
 	var previewHTML string
 	if valid {
-		previewData := buildPreviewData(tmplType)
+		contentID := r.FormValue("content_id")
+		var previewData any
+		if contentID != "" {
+			previewData = a.buildRealPreviewData(tmplType, contentID)
+		}
+		if previewData == nil {
+			previewData = buildPreviewData(tmplType)
+		}
 		rendered, err := a.engine.ValidateAndRender(htmlContent, previewData)
 		if err == nil {
 			previewHTML = string(rendered)
@@ -922,9 +932,252 @@ func (a *Admin) AITemplateSave(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, templateSaveResponse{ID: created.ID.String()})
 }
 
+// --- Preview Content Selection ---
+
+// previewContentItem is a JSON-serializable summary of a content item
+// for the preview content selector dropdown.
+type previewContentItem struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Type  string `json:"type"`
+	Slug  string `json:"slug"`
+}
+
+// AIPreviewContentList returns a JSON list of available content items
+// (posts and pages) that can be used for real-data template previews.
+func (a *Admin) AIPreviewContentList(w http.ResponseWriter, r *http.Request) {
+	var items []previewContentItem
+
+	// Fetch published posts.
+	posts, err := a.contentStore.ListPublishedByType(models.ContentTypePost)
+	if err != nil {
+		slog.Warn("preview content list: failed to list posts", "error", err)
+	}
+	for _, p := range posts {
+		items = append(items, previewContentItem{
+			ID:    p.ID.String(),
+			Title: p.Title,
+			Type:  "post",
+			Slug:  p.Slug,
+		})
+	}
+
+	// Fetch published pages.
+	pages, err := a.contentStore.ListPublishedByType(models.ContentTypePage)
+	if err != nil {
+		slog.Warn("preview content list: failed to list pages", "error", err)
+	}
+	for _, p := range pages {
+		items = append(items, previewContentItem{
+			ID:    p.ID.String(),
+			Title: p.Title,
+			Type:  "page",
+			Slug:  p.Slug,
+		})
+	}
+
+	// Also include draft content — useful for previewing unpublished work.
+	drafts, err := a.contentStore.ListByType(models.ContentTypePost)
+	if err == nil {
+		for _, d := range drafts {
+			if d.Status == models.ContentStatusDraft {
+				items = append(items, previewContentItem{
+					ID:    d.ID.String(),
+					Title: d.Title + " (draft)",
+					Type:  "post",
+					Slug:  d.Slug,
+				})
+			}
+		}
+	}
+	draftPages, err := a.contentStore.ListByType(models.ContentTypePage)
+	if err == nil {
+		for _, d := range draftPages {
+			if d.Status == models.ContentStatusDraft {
+				items = append(items, previewContentItem{
+					ID:    d.ID.String(),
+					Title: d.Title + " (draft)",
+					Type:  "page",
+					Slug:  d.Slug,
+				})
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(items)
+}
+
+// buildRealPreviewData builds template preview data from real content.
+// For "page" templates, it fetches a specific content item by ID.
+// For "article_loop" templates, it fetches all published posts.
+// Returns nil if the content cannot be found or an error occurs.
+func (a *Admin) buildRealPreviewData(tmplType string, contentID string) any {
+	switch tmplType {
+	case "page":
+		return a.buildRealPagePreview(contentID)
+	case "article_loop":
+		return a.buildRealArticleLoopPreview()
+	default:
+		// Header/footer don't use content data.
+		return buildPreviewData(tmplType)
+	}
+}
+
+// buildRealPagePreview fetches a content item and its featured image,
+// then assembles PageData for template preview rendering.
+func (a *Admin) buildRealPagePreview(contentID string) any {
+	id, err := uuid.Parse(contentID)
+	if err != nil {
+		return nil
+	}
+
+	content, err := a.contentStore.FindByID(id)
+	if err != nil || content == nil {
+		return nil
+	}
+
+	// Convert Markdown body to HTML if needed.
+	bodyHTML := content.Body
+	if content.BodyFormat == models.BodyFormatMarkdown {
+		rendered, err := markdown.ToHTML(content.Body)
+		if err == nil {
+			bodyHTML = rendered
+		}
+	}
+
+	// Rewrite inline images for responsive srcset.
+	bodyHTML = a.engine.RewriteBodyImages(bodyHTML)
+
+	publishedAt := ""
+	if content.PublishedAt != nil {
+		publishedAt = content.PublishedAt.Format("January 2, 2006")
+	}
+
+	data := engine.PageData{
+		SiteName:    "YaaiCMS",
+		Title:       content.Title,
+		Body:        template.HTML(bodyHTML),
+		Slug:        content.Slug,
+		PublishedAt: publishedAt,
+		Header:      "<header class='bg-gray-800 text-white p-4'><nav class='max-w-6xl mx-auto flex justify-between items-center'><span class='text-xl font-bold'>YaaiCMS</span><div class='space-x-4'><a href='/' class='hover:text-gray-300'>Home</a><a href='/blog' class='hover:text-gray-300'>Blog</a></div></nav></header>",
+		Footer:      "<footer class='bg-gray-800 text-gray-400 p-6 text-center text-sm'>&copy; 2026 YaaiCMS. All rights reserved.</footer>",
+		Year:        time.Now().Year(),
+	}
+
+	if content.Excerpt != nil {
+		data.Excerpt = *content.Excerpt
+	}
+	if content.MetaDescription != nil {
+		data.MetaDescription = *content.MetaDescription
+	}
+	if content.MetaKeywords != nil {
+		data.MetaKeywords = *content.MetaKeywords
+	}
+
+	// Resolve featured image if available.
+	if content.FeaturedImageID != nil && a.mediaStore != nil && a.storageClient != nil {
+		media, err := a.mediaStore.FindByID(*content.FeaturedImageID)
+		if err == nil && media != nil && media.Bucket == a.storageClient.PublicBucket() {
+			data.FeaturedImageURL = a.storageClient.FileURL(media.S3Key)
+			if media.AltText != nil {
+				data.FeaturedImageAlt = *media.AltText
+			}
+			// Build srcset from variants.
+			if a.variantStore != nil {
+				variants, err := a.variantStore.FindByMediaIDs([]uuid.UUID{media.ID})
+				if err == nil {
+					data.FeaturedImageSrcset = buildSrcsetForPreview(a.storageClient, variants[media.ID])
+				}
+			}
+		}
+	}
+
+	return data
+}
+
+// buildRealArticleLoopPreview fetches published posts and their featured
+// images, then assembles ListData for article_loop template preview.
+func (a *Admin) buildRealArticleLoopPreview() any {
+	posts, err := a.contentStore.ListPublishedByType(models.ContentTypePost)
+	if err != nil || len(posts) == 0 {
+		return nil
+	}
+
+	// Collect featured image IDs for batch lookup.
+	var mediaIDs []uuid.UUID
+	mediaIDSet := make(map[uuid.UUID]bool)
+	for _, p := range posts {
+		if p.FeaturedImageID != nil && !mediaIDSet[*p.FeaturedImageID] {
+			mediaIDs = append(mediaIDs, *p.FeaturedImageID)
+			mediaIDSet[*p.FeaturedImageID] = true
+		}
+	}
+
+	// Batch-fetch variants for all featured images.
+	var variantMap map[uuid.UUID][]models.MediaVariant
+	if len(mediaIDs) > 0 && a.variantStore != nil {
+		variantMap, _ = a.variantStore.FindByMediaIDs(mediaIDs)
+	}
+
+	var postItems []engine.PostItem
+	for _, p := range posts {
+		item := engine.PostItem{
+			Title: p.Title,
+			Slug:  p.Slug,
+		}
+		if p.Excerpt != nil {
+			item.Excerpt = *p.Excerpt
+		}
+		if p.PublishedAt != nil {
+			item.PublishedAt = p.PublishedAt.Format("January 2, 2006")
+		}
+
+		// Resolve featured image.
+		if p.FeaturedImageID != nil && a.mediaStore != nil && a.storageClient != nil {
+			media, err := a.mediaStore.FindByID(*p.FeaturedImageID)
+			if err == nil && media != nil && media.Bucket == a.storageClient.PublicBucket() {
+				item.FeaturedImageURL = a.storageClient.FileURL(media.S3Key)
+				if media.AltText != nil {
+					item.FeaturedImageAlt = *media.AltText
+				}
+				if variantMap != nil {
+					item.FeaturedImageSrcset = buildSrcsetForPreview(a.storageClient, variantMap[media.ID])
+				}
+			}
+		}
+		postItems = append(postItems, item)
+	}
+
+	return engine.ListData{
+		SiteName: "YaaiCMS",
+		Title:    "Blog",
+		Posts:    postItems,
+		Header:   "<header class='bg-gray-800 text-white p-4'><nav class='max-w-6xl mx-auto flex justify-between items-center'><span class='text-xl font-bold'>YaaiCMS</span><div class='space-x-4'><a href='/' class='hover:text-gray-300'>Home</a><a href='/blog' class='hover:text-gray-300'>Blog</a></div></nav></header>",
+		Footer:   "<footer class='bg-gray-800 text-gray-400 p-6 text-center text-sm'>&copy; 2026 YaaiCMS. All rights reserved.</footer>",
+		Year:     time.Now().Year(),
+	}
+}
+
+// buildSrcsetForPreview constructs a srcset string from media variants,
+// excluding thumbnails (too small for content display).
+func buildSrcsetForPreview(storageClient *storage.Client, variants []models.MediaVariant) string {
+	var parts []string
+	for _, v := range variants {
+		if v.Name == "thumb" {
+			continue
+		}
+		url := storageClient.FileURL(v.S3Key)
+		parts = append(parts, fmt.Sprintf("%s %dw", url, v.Width))
+	}
+	return strings.Join(parts, ", ")
+}
+
 // buildTemplateSystemPrompt creates a system prompt that instructs the LLM
 // to generate an HTML+TailwindCSS template with the correct Go template
-// variables for the given template type.
+// variables for the given template type. Each variable includes a detailed
+// description of its content, purpose, and recommended usage patterns so
+// the AI can make informed design decisions.
 func buildTemplateSystemPrompt(tmplType string) string {
 	base := `You are an expert web designer who creates beautiful, modern HTML templates using TailwindCSS.
 You generate complete, production-ready HTML+TailwindCSS templates for a CMS called YaaiCMS.
@@ -934,77 +1187,202 @@ CRITICAL RULES:
 2. Use TailwindCSS utility classes for all styling. Do not use custom CSS.
 3. Use Go template syntax for dynamic content: {{.VariableName}}
 4. For raw HTML content (like Body, Header, Footer), the CMS handles escaping — just use {{.Body}} etc.
-5. Templates should be responsive and look professional.
-6. Use semantic HTML elements (header, nav, main, article, footer, etc.).
-7. Do not include <html>, <head>, or <body> tags — these templates are rendered as fragments.
-8. Include the TailwindCSS CDN script tag only in page-level templates that need it.`
+5. Templates should be responsive and look professional on all screen sizes.
+6. Use semantic HTML elements (header, nav, main, article, footer, section, etc.).
+7. Include the TailwindCSS CDN script tag only in full page templates (page, article_loop).
+8. Guard optional fields with {{if .Field}} to avoid rendering empty markup.`
 
 	var vars string
 	switch tmplType {
 	case "header":
 		vars = `
-Available variables for HEADER templates:
-- {{.SiteName}} — The site name (e.g., "YaaiCMS")
-- {{.Year}} — Current year (e.g., 2026)
 
-Header templates typically contain: site logo/name, navigation links, maybe a search bar.
-The header is injected into page templates via {{.Header}}.`
+TEMPLATE TYPE: Header (navigation bar)
+The header is a reusable fragment injected at the top of every page via {{.Header}}.
+It should NOT include <html>, <head>, or <body> tags — just the header/nav markup.
+
+AVAILABLE VARIABLES:
+- {{.SiteName}} (string, always set)
+  The site's display name, e.g., "My Blog" or "YaaiCMS".
+  Use as the logo text or brand name in the navigation bar.
+
+- {{.Year}} (int, always set)
+  The current calendar year (e.g., 2026).
+  Rarely needed in headers, but available for copyright if combined header/footer.
+
+DESIGN GUIDELINES:
+- Include a prominent site name/logo linking to "/" (the homepage).
+- Add navigation links: Home (/), Blog (/blog), and leave room for more.
+- Make the header responsive: hamburger menu or collapsible nav on mobile.
+- Use a contrasting background (e.g., dark bg with light text, or white with border-bottom).
+- Consider making it sticky with "sticky top-0 z-50" for better UX.`
 
 	case "footer":
 		vars = `
-Available variables for FOOTER templates:
-- {{.SiteName}} — The site name
-- {{.Year}} — Current year
 
-Footer templates typically contain: copyright notice, social links, secondary navigation.
-The footer is injected into page templates via {{.Footer}}.`
+TEMPLATE TYPE: Footer
+The footer is a reusable fragment injected at the bottom of every page via {{.Footer}}.
+It should NOT include <html>, <head>, or <body> tags — just the footer markup.
+
+AVAILABLE VARIABLES:
+- {{.SiteName}} (string, always set)
+  The site's display name. Use in the copyright line.
+
+- {{.Year}} (int, always set)
+  The current year. Use for "© 2026 SiteName" copyright notices.
+
+DESIGN GUIDELINES:
+- Include a copyright notice: "© {{.Year}} {{.SiteName}}. All rights reserved."
+- Optionally add: secondary navigation links, social media icons, a brief tagline.
+- Keep it compact — footers should complement, not compete with content.
+- Use a background that pairs with the header for visual consistency.`
 
 	case "page":
 		vars = `
-Available variables for PAGE templates:
-- {{.Title}} — Page/post title
-- {{.Body}} — Content body (raw HTML from editor)
-- {{.Header}} — Pre-rendered header HTML (include with {{.Header}})
-- {{.Footer}} — Pre-rendered footer HTML (include with {{.Footer}})
-- {{.Excerpt}} — Short summary text
-- {{.MetaDescription}} — SEO meta description
-- {{.MetaKeywords}} — SEO keywords
-- {{.FeaturedImageURL}} — Public URL of the featured image (empty string if none)
-- {{.FeaturedImageSrcset}} — Responsive srcset string for the featured image (e.g., "url_sm.webp 640w, url_md.webp 1024w, url_lg.webp 1920w"). Empty if none.
-- {{.FeaturedImageAlt}} — Alt text for the featured image. Empty if none.
-- {{.SiteName}} — The site name
-- {{.Year}} — Current year
-- {{.Slug}} — URL slug
-- {{.PublishedAt}} — Publication date string
 
-Page templates are FULL page layouts. Include {{.Header}} at the top and {{.Footer}} at the bottom.
-Include the TailwindCSS CDN: <script src="https://cdn.tailwindcss.com"></script>
-Wrap the page in a proper HTML structure with <html>, <head>, <body> tags.
-When displaying the featured image, use responsive srcset for optimal loading:
-{{if .FeaturedImageURL}}<img src="{{.FeaturedImageURL}}" {{if .FeaturedImageSrcset}}srcset="{{.FeaturedImageSrcset}}" sizes="(max-width: 640px) 640px, (max-width: 1024px) 1024px, 1920px"{{end}} alt="{{.FeaturedImageAlt}}" class="w-full ...">{{end}}`
+TEMPLATE TYPE: Page (full single-page layout)
+Page templates render individual posts and pages. They are FULL HTML documents
+that include the <html>, <head>, and <body> tags. The header and footer are
+pre-rendered HTML fragments injected via {{.Header}} and {{.Footer}}.
+
+Include the TailwindCSS CDN in <head>: <script src="https://cdn.tailwindcss.com"></script>
+
+AVAILABLE VARIABLES:
+
+Layout fragments (pre-rendered HTML, always present):
+- {{.Header}} (template.HTML)
+  The site header/navigation bar, pre-rendered from the active header template.
+  Place at the top of <body>. It outputs raw HTML — no escaping needed.
+
+- {{.Footer}} (template.HTML)
+  The site footer, pre-rendered from the active footer template.
+  Place at the bottom of <body>. It outputs raw HTML — no escaping needed.
+
+Content fields:
+- {{.Title}} (string, always set)
+  The page or post title, e.g., "Getting Started with Go".
+  Display prominently as an <h1> in the hero section or article header.
+
+- {{.Body}} (template.HTML, always set)
+  The main content body as rendered HTML. This is converted from Markdown and
+  may contain headings (h2, h3), paragraphs, lists, blockquotes, code blocks,
+  inline images (with responsive srcset already injected), and links.
+  Style with Tailwind's prose classes: <div class="prose prose-lg max-w-none">{{.Body}}</div>
+
+- {{.Excerpt}} (string, may be empty)
+  A short 1-2 sentence summary of the content, useful as a subtitle or lead paragraph.
+  Guard with: {{if .Excerpt}}<p class="lead">{{.Excerpt}}</p>{{end}}
+
+- {{.Slug}} (string, always set)
+  The URL-friendly identifier, e.g., "getting-started-with-go".
+  The page is accessible at /{{.Slug}}. Useful for canonical URLs.
+
+- {{.PublishedAt}} (string, may be empty)
+  A human-readable publication date like "February 25, 2026".
+  Display near the title as metadata: {{if .PublishedAt}}<time>{{.PublishedAt}}</time>{{end}}
+
+Featured image (all three are empty strings when no image is set):
+- {{.FeaturedImageURL}} (string)
+  Public URL of the original featured image (e.g., PNG/JPG hosted on S3).
+  Use as the src attribute. Always guard: {{if .FeaturedImageURL}}...{{end}}
+
+- {{.FeaturedImageSrcset}} (string)
+  Pre-built responsive srcset string with WebP variants at multiple widths,
+  e.g., "https://s3.../img_sm.webp 640w, .../img_md.webp 1024w, .../img_lg.webp 1920w".
+  Browsers automatically select the best size. Use with sizes attribute.
+
+- {{.FeaturedImageAlt}} (string)
+  Descriptive alt text for accessibility and SEO.
+
+  RECOMMENDED featured image pattern:
+  {{if .FeaturedImageURL}}
+  <img src="{{.FeaturedImageURL}}"
+       {{if .FeaturedImageSrcset}}srcset="{{.FeaturedImageSrcset}}"
+       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 1024px, 1920px"{{end}}
+       alt="{{.FeaturedImageAlt}}"
+       class="w-full h-auto rounded-lg object-cover" loading="lazy">
+  {{end}}
+
+SEO metadata (for <head>):
+- {{.MetaDescription}} (string, may be empty)
+  SEO meta description for search engine results (max ~160 chars).
+  Use in <head>: {{if .MetaDescription}}<meta name="description" content="{{.MetaDescription}}">{{end}}
+
+- {{.MetaKeywords}} (string, may be empty)
+  Comma-separated SEO keywords.
+  Use: {{if .MetaKeywords}}<meta name="keywords" content="{{.MetaKeywords}}">{{end}}
+
+Site-level:
+- {{.SiteName}} (string, always set)
+  The site name. Use in <title>: <title>{{.Title}} | {{.SiteName}}</title>
+
+- {{.Year}} (int, always set)
+  Current year. Available but rarely needed in page templates (footer handles copyright).
+
+DESIGN GUIDELINES:
+- Structure: <html> → <head> (with TailwindCSS CDN, meta tags) → <body> → {{.Header}} → <main> → {{.Footer}}
+- Use a hero section with the title, date, and optional featured image.
+- Render {{.Body}} inside a prose container for proper typography.
+- Make the layout responsive: full-width on mobile, max-w-4xl centered on desktop.`
 
 	case "article_loop":
 		vars = `
-Available variables for ARTICLE LOOP templates:
-- {{.Title}} — Page title (e.g., "Blog")
-- {{.Header}} — Pre-rendered header HTML
-- {{.Footer}} — Pre-rendered footer HTML
-- {{.SiteName}} — The site name
-- {{.Year}} — Current year
-- {{range .Posts}} ... {{end}} — Loop over posts, each with:
-  - {{.Title}} — Post title
-  - {{.Slug}} — Post URL slug (link as /{{.Slug}})
-  - {{.Excerpt}} — Post excerpt/summary
-  - {{.FeaturedImageURL}} — Public URL of the featured image (empty string if none)
-  - {{.FeaturedImageSrcset}} — Responsive srcset string (e.g., "url_sm.webp 640w, url_md.webp 1024w"). Empty if none.
-  - {{.FeaturedImageAlt}} — Alt text for the featured image. Empty if none.
-  - {{.PublishedAt}} — Publication date
 
-Article loop templates show a list/grid of blog posts. Include header and footer.
-Include the TailwindCSS CDN: <script src="https://cdn.tailwindcss.com"></script>
-Wrap the page in a proper HTML structure with <html>, <head>, <body> tags.
-When displaying post images, use responsive srcset for optimal loading:
-{{if .FeaturedImageURL}}<img src="{{.FeaturedImageURL}}" {{if .FeaturedImageSrcset}}srcset="{{.FeaturedImageSrcset}}" sizes="(max-width: 640px) 640px, 1024px"{{end}} alt="{{.FeaturedImageAlt}}" class="w-full ...">{{end}}`
+TEMPLATE TYPE: Article Loop (post listing / blog index)
+Article loop templates show a list or grid of blog posts. They are FULL HTML
+documents with <html>, <head>, <body> tags. Posts are iterated with {{range .Posts}}.
+
+Include the TailwindCSS CDN in <head>: <script src="https://cdn.tailwindcss.com"></script>
+
+AVAILABLE VARIABLES:
+
+Layout:
+- {{.Header}} (template.HTML) — Pre-rendered site header. Place at top of <body>.
+- {{.Footer}} (template.HTML) — Pre-rendered site footer. Place at bottom of <body>.
+- {{.SiteName}} (string) — Site name, for <title> tag.
+- {{.Year}} (int) — Current year.
+- {{.Title}} (string) — Page title, typically "Blog" or "Posts". Display as <h1>.
+
+Post loop — iterate with {{range .Posts}} ... {{end}}:
+Each post item has these fields:
+
+- {{.Title}} (string, always set)
+  The post title. Display as a clickable heading linking to the post.
+
+- {{.Slug}} (string, always set)
+  URL slug for the post. Link as: <a href="/{{.Slug}}">{{.Title}}</a>
+
+- {{.Excerpt}} (string, may be empty)
+  A brief summary of the post content (1-2 sentences).
+  Display below the title as a preview teaser.
+
+- {{.PublishedAt}} (string, may be empty)
+  Human-readable date like "February 25, 2026".
+
+- {{.FeaturedImageURL}} (string, empty if no image)
+  Public URL of the post's featured image.
+
+- {{.FeaturedImageSrcset}} (string, empty if no image)
+  Responsive srcset with WebP variants at multiple widths.
+
+- {{.FeaturedImageAlt}} (string, empty if no image)
+  Alt text for the featured image.
+
+  RECOMMENDED post card image pattern:
+  {{if .FeaturedImageURL}}
+  <img src="{{.FeaturedImageURL}}"
+       {{if .FeaturedImageSrcset}}srcset="{{.FeaturedImageSrcset}}"
+       sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"{{end}}
+       alt="{{.FeaturedImageAlt}}"
+       class="w-full h-48 object-cover" loading="lazy">
+  {{end}}
+
+DESIGN GUIDELINES:
+- Display posts in a responsive grid: 1 column on mobile, 2-3 columns on desktop.
+- Each post card should include: featured image (if any), title (linked), excerpt, date.
+- Use consistent card styling with hover effects for interactivity.
+- Include the page title as an <h1> above the post grid.
+- Consider adding visual interest when no featured image exists (colored placeholder, icon, etc.).`
 
 	default:
 		vars = "\nGenerate a generic HTML template using TailwindCSS."
