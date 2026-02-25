@@ -1374,7 +1374,6 @@ func (a *Admin) SettingsSave(w http.ResponseWriter, r *http.Request) {
 		"language":       r.FormValue("language"),
 		"date_format":    r.FormValue("date_format"),
 		"posts_per_page": r.FormValue("posts_per_page"),
-		"site_url":       strings.TrimRight(r.FormValue("site_url"), "/"),
 	}
 
 	if err := a.siteSettingStore.SetMany(updates); err != nil {
