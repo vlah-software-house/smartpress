@@ -88,16 +88,19 @@ Rules:
 	w.Write([]byte(fragment))
 }
 
-// AIGenerateImage generates an image using the active AI provider's image
-// generation capability (e.g., DALL-E 3 for OpenAI). The generated image is
-// uploaded to S3 and stored as a media record. Returns an HTML fragment with
-// a preview and a "Use as Featured Image" button.
+// AIGenerateImage generates an image using the selected AI provider's image
+// generation capability. Accepts an optional "image_provider" form value to
+// choose a specific provider (e.g., "openai" for DALL-E, "gemini" for Imagen);
+// if empty, uses the active provider or falls back to any image-capable one.
+// The generated image is uploaded to S3 and stored as a media record.
 func (a *Admin) AIGenerateImage(w http.ResponseWriter, r *http.Request) {
 	prompt := strings.TrimSpace(r.FormValue("ai_image_prompt"))
 	if prompt == "" {
 		writeAIError(w, "Please describe the image you'd like to generate.")
 		return
 	}
+
+	imageProvider := strings.TrimSpace(r.FormValue("image_provider"))
 
 	if a.storageClient == nil || a.mediaStore == nil {
 		writeAIError(w, "Object storage is not configured. Cannot save generated images.")
@@ -115,8 +118,8 @@ func (a *Admin) AIGenerateImage(w http.ResponseWriter, r *http.Request) {
 
 	sess := middleware.SessionFromCtx(r.Context())
 
-	// Generate the image.
-	imgBytes, contentType, err := a.aiRegistry.GenerateImage(r.Context(), prompt)
+	// Generate the image using the selected (or default) provider.
+	imgBytes, contentType, err := a.aiRegistry.GenerateImage(r.Context(), imageProvider, prompt)
 	if err != nil {
 		slog.Error("ai generate image failed", "error", err)
 		writeAIError(w, "Image generation failed. Check your provider configuration and API limits.")
@@ -583,6 +586,33 @@ func (a *Admin) AISetProvider(w http.ResponseWriter, r *http.Request) {
 // Used by the content form to load the initial state of the provider dropdown.
 func (a *Admin) AIProviderStatus(w http.ResponseWriter, r *http.Request) {
 	a.writeProviderSelector(w, a.aiRegistry.ActiveName())
+}
+
+// AIImageProviders returns a JSON list of providers that support image
+// generation. Used by the frontend to populate image provider selectors.
+func (a *Admin) AIImageProviders(w http.ResponseWriter, r *http.Request) {
+	names := a.aiRegistry.ImageProviders()
+
+	type providerInfo struct {
+		Name  string `json:"name"`
+		Label string `json:"label"`
+	}
+
+	var providers []providerInfo
+	for _, p := range a.aiConfig.Providers {
+		for _, name := range names {
+			if p.Name == name {
+				providers = append(providers, providerInfo{
+					Name:  p.Name,
+					Label: p.Label,
+				})
+				break
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(providers)
 }
 
 // refreshAIConfig updates the cached AIConfig after a provider switch.

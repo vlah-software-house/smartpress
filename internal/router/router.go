@@ -136,6 +136,7 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 				r.Use(aiLimiter.Middleware)
 				r.Post("/set-provider", admin.AISetProvider)
 				r.Get("/provider-status", admin.AIProviderStatus)
+				r.Get("/image-providers", admin.AIImageProviders)
 				r.Post("/generate-content", admin.AIGenerateContent)
 				r.Post("/generate-image", admin.AIGenerateImage)
 				r.Post("/suggest-title", admin.AISuggestTitle)

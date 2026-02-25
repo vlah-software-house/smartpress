@@ -106,20 +106,22 @@ func (p *geminiProvider) GenerateWithModel(ctx context.Context, model, systemPro
 	return "", fmt.Errorf("gemini: no text in response")
 }
 
-// GenerateImage creates an image using Gemini's OpenAI-compatible image
-// generation endpoint. Uses ModelImage from config (e.g., "gemini-2.5-flash-image").
-// Returns PNG image bytes and the content type.
+// GenerateImage creates an image using Gemini's native generateContent API
+// with responseModalities set to IMAGE. Uses ModelImage from config
+// (e.g., "gemini-2.5-flash-image"). Returns image bytes and the content type.
 func (p *geminiProvider) GenerateImage(ctx context.Context, prompt string) ([]byte, string, error) {
 	model := p.config.ModelImage
 	if model == "" {
 		return nil, "", fmt.Errorf("gemini: image generation requires GEMINI_MODEL_IMAGE to be set")
 	}
 
-	body := openAIImageRequest{
-		Model:          model,
-		Prompt:         prompt,
-		N:              1,
-		ResponseFormat: "b64_json",
+	body := geminiImageRequest{
+		Contents: []geminiContent{
+			{Parts: []geminiPart{{Text: "Generate an image of: " + prompt}}},
+		},
+		GenerationConfig: geminiImageConfig{
+			ResponseModalities: []string{"IMAGE", "TEXT"},
+		},
 	}
 
 	payload, err := json.Marshal(body)
@@ -127,14 +129,15 @@ func (p *geminiProvider) GenerateImage(ctx context.Context, prompt string) ([]by
 		return nil, "", fmt.Errorf("gemini image marshal: %w", err)
 	}
 
-	url := p.config.BaseURL + "/v1beta/openai/images/generations"
+	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent?key=%s",
+		p.config.BaseURL, model, p.config.APIKey)
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
 	if err != nil {
 		return nil, "", fmt.Errorf("gemini image request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+p.config.APIKey)
 
 	imgClient := &http.Client{Timeout: 120 * time.Second}
 	resp, err := imgClient.Do(req)
@@ -152,21 +155,29 @@ func (p *geminiProvider) GenerateImage(ctx context.Context, prompt string) ([]by
 		return nil, "", fmt.Errorf("gemini image API error (status %d): %s", resp.StatusCode, string(respBody))
 	}
 
-	var result openAIImageResponse
+	var result geminiImageResponse
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, "", fmt.Errorf("gemini image unmarshal: %w", err)
 	}
 
-	if len(result.Data) == 0 {
-		return nil, "", fmt.Errorf("gemini image: no images returned")
+	// Extract the image data from the response parts.
+	for _, c := range result.Candidates {
+		for _, part := range c.Content.ImageParts {
+			if part.InlineData != nil && part.InlineData.Data != "" {
+				imgBytes, err := base64.StdEncoding.DecodeString(part.InlineData.Data)
+				if err != nil {
+					return nil, "", fmt.Errorf("gemini image decode base64: %w", err)
+				}
+				contentType := part.InlineData.MimeType
+				if contentType == "" {
+					contentType = "image/png"
+				}
+				return imgBytes, contentType, nil
+			}
+		}
 	}
 
-	imgBytes, err := base64.StdEncoding.DecodeString(result.Data[0].B64JSON)
-	if err != nil {
-		return nil, "", fmt.Errorf("gemini image decode base64: %w", err)
-	}
-
-	return imgBytes, "image/png", nil
+	return nil, "", fmt.Errorf("gemini image: no image data in response")
 }
 
 // --- Gemini API types ---
@@ -190,4 +201,37 @@ type geminiCandidate struct {
 
 type geminiResponse struct {
 	Candidates []geminiCandidate `json:"candidates"`
+}
+
+// --- Gemini native image generation types ---
+
+type geminiImageRequest struct {
+	Contents         []geminiContent  `json:"contents"`
+	GenerationConfig geminiImageConfig `json:"generationConfig"`
+}
+
+type geminiImageConfig struct {
+	ResponseModalities []string `json:"responseModalities"`
+}
+
+type geminiInlineData struct {
+	MimeType string `json:"mimeType"`
+	Data     string `json:"data"`
+}
+
+type geminiImagePart struct {
+	InlineData *geminiInlineData `json:"inlineData,omitempty"`
+	Text       string            `json:"text,omitempty"`
+}
+
+type geminiImageContent struct {
+	ImageParts []geminiImagePart `json:"parts"`
+}
+
+type geminiImageCandidate struct {
+	Content geminiImageContent `json:"content"`
+}
+
+type geminiImageResponse struct {
+	Candidates []geminiImageCandidate `json:"candidates"`
 }
