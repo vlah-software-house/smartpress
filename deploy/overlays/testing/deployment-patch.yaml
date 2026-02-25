@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smartpress
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: smartpress
+          env:
+            - name: APP_ENV
+              value: "testing"
+            # Database — remote PostgreSQL on the testing cluster.
+            - name: POSTGRES_HOST
+              value: "10.0.0.6"
+            - name: POSTGRES_PORT
+              value: "5432"
+            # Valkey — remote instance on the testing cluster.
+            - name: VALKEY_HOST
+              value: "10.0.0.6"
+            - name: VALKEY_PORT
+              value: "6379"
+            - name: VALKEY_DB
+              value: "101"
+          # Credentials come from the smartpress-secrets Secret (envFrom in base).
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi

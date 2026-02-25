@@ -17,9 +17,11 @@
 - [x] Content type validation (sniff-based, not header-trusted)
 
 ## Step 13: Infrastructure
-- [ ] Production Dockerfile (multi-stage build)
-- [ ] Kubernetes manifests (Kustomize overlays)
-- [ ] TailwindCSS build pipeline (compile from DB classes)
+- [x] Production Dockerfile (multi-stage build: Node→Go→Alpine, non-root user)
+- [x] Kubernetes manifests (Kustomize base + testing overlay for smartpress.test.vlah.sh)
+- [x] TailwindCSS build pipeline (admin: compile-time from templates; public: scripts/build-public-css.sh from DB)
+- [x] Static file serving (embedded FS at /static/*, conditional CDN/local in templates)
+- [x] 2fa_verify standalone template fix
 
 ## Step 14: Testing
 - [ ] Unit tests (near 100% coverage)

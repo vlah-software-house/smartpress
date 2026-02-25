@@ -5,8 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Two-Factor Authentication — SmartPress</title>
+    {{if isDev}}
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    {{else}}
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <script src="/static/js/htmx.min.js"></script>
+    {{end}}
 </head>
 <body class="h-full flex items-center justify-center"
       hx-headers='{"X-CSRF-Token": "{{.CSRFToken}}"}'>

@@ -4,6 +4,7 @@
 package router
 
 import (
+	"io/fs"
 	"net/http"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"smartpress/internal/handlers"
 	"smartpress/internal/middleware"
 	"smartpress/internal/session"
+	"smartpress/web"
 )
 
 // New creates and returns the configured Chi router with all middleware
@@ -30,6 +32,12 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 	r.Use(middleware.SecureHeaders)
 	r.Use(middleware.Logger)
 	r.Use(middleware.LoadSession(sessionStore))
+
+	// Static assets (compiled CSS, vendored JS) — served from the embedded FS.
+	// In production the Docker build populates these; in development the
+	// templates use CDN instead, so 404s on /static/ are harmless.
+	staticFS, _ := fs.Sub(web.StaticFS, "static")
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(staticFS))))
 
 	// Health check — no auth, no CSRF.
 	r.Get("/health", healthHandler)

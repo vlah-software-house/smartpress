@@ -5,14 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{template "title" .}} — SmartPress</title>
 
-    <!-- TailwindCSS (CDN for development) -->
+    {{if isDev}}
+    <!-- Development: CDN-hosted assets (no build step needed) -->
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-
-    <!-- AlpineJS -->
     <script defer src="https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js"></script>
+    {{else}}
+    <!-- Production: compiled and vendored assets -->
+    <link rel="stylesheet" href="/static/css/admin.css">
+    <script src="/static/js/htmx.min.js"></script>
+    <script defer src="/static/js/alpine.min.js"></script>
+    {{end}}
 
     <style>
         /* Smooth transitions for HTMX content swaps */

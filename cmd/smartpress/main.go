@@ -80,7 +80,9 @@ func main() {
 	sessionStore := session.NewStore(valkeyClient, secureCookies)
 
 	// Initialize the HTML template renderer for admin pages.
-	renderer, err := render.New()
+	// In dev mode, templates load assets from CDN; in production they use
+	// compiled local files embedded in the binary.
+	renderer, err := render.New(cfg.IsDev())
 	if err != nil {
 		slog.Error("failed to initialize template renderer", "error", err)
 		os.Exit(1)

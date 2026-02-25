@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+namespace: smartpress-testing
+
+patches:
+  - path: ingress-patch.yaml
+  - path: deployment-patch.yaml
+
+# To create the secrets from the .secrets file:
+#   kubectl create secret generic smartpress-secrets \
+#     --from-env-file=../../.secrets \
+#     -n smartpress-testing \
+#     --dry-run=client -o yaml > secret.yaml
+#
+# Then add secret.yaml to resources (it is gitignored).

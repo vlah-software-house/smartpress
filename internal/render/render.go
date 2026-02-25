@@ -40,9 +40,19 @@ type Renderer struct {
 	funcMap   template.FuncMap
 }
 
+// standaloneTemplates lists templates that render as full HTML pages
+// without the base layout (they have their own <html>, <head>, etc.).
+var standaloneTemplates = map[string]bool{
+	"login":      true,
+	"2fa_setup":  true,
+	"2fa_verify": true,
+}
+
 // New creates a Renderer by parsing all admin templates from the embedded
 // filesystem. Each page template is paired with the base layout.
-func New() (*Renderer, error) {
+// When devMode is true, templates use CDN-hosted assets (TailwindCSS, HTMX,
+// AlpineJS); when false, they reference compiled local static files.
+func New(devMode bool) (*Renderer, error) {
 	r := &Renderer{
 		templates: make(map[string]*template.Template),
 		funcMap: template.FuncMap{
@@ -58,6 +68,11 @@ func New() (*Renderer, error) {
 					return ""
 				}
 				return *s
+			},
+			// isDev returns true when the app runs in development mode.
+			// Used by templates to conditionally load CDN vs local assets.
+			"isDev": func() bool {
+				return devMode
 			},
 		},
 	}
@@ -91,16 +106,15 @@ func New() (*Renderer, error) {
 		// Strip .html extension for the template name.
 		tmplName := name[:len(name)-len(".html")]
 
-		// Standalone templates (login, 2fa_setup) don't need the base layout.
+		// Standalone templates render as full pages without the base layout.
 		var tmpl *template.Template
 		var parseErr error
 
-		switch tmplName {
-		case "login", "2fa_setup":
+		if standaloneTemplates[tmplName] {
 			tmpl, parseErr = template.New(name).Funcs(r.funcMap).ParseFS(
 				adminFS, "templates/admin/"+name,
 			)
-		default:
+		} else {
 			tmpl, parseErr = template.New("base.html").Funcs(r.funcMap).ParseFS(
 				adminFS, "templates/admin/base.html", "templates/admin/"+name,
 			)
@@ -146,9 +160,8 @@ func (rn *Renderer) Page(w http.ResponseWriter, r *http.Request, name string, da
 
 	// Full page request: render the complete layout.
 	execName := "base.html"
-	// Standalone pages (login, 2fa_setup) use their own root template.
-	switch name {
-	case "login", "2fa_setup":
+	// Standalone pages use their own root template (not base.html).
+	if standaloneTemplates[name] {
 		execName = name + ".html"
 	}
 

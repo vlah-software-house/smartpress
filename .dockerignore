@@ -1,0 +1,37 @@
+# Docker data (local dev volumes)
+.docker-data/
+
+# Secrets — never include in image (passed as env vars or K8s secrets)
+.env
+.secrets
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+
+# Node modules (rebuilt in Docker)
+node_modules/
+package-lock.json
+
+# Work / docs
+work/
+DESCRIPTION.md
+CLAUDE.md
+*.md
+
+# Test artifacts
+test-results/
+playwright-report/
+coverage.html
+coverage.txt
+
+# Tailwind temp content
+.tailwind-content/
+
+# Built binary (local)
+/smartpress
+/bin/

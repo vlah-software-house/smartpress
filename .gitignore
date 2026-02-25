@@ -33,10 +33,23 @@ Thumbs.db
 
 # Node modules (Tailwind build, Playwright)
 node_modules/
+package-lock.json
+
+# TailwindCSS build artifacts (generated in Docker or via npm scripts)
+web/static/css/admin.css
+web/static/css/public.css
+web/static/js/htmx.min.js
+web/static/js/alpine.min.js
+
+# Tailwind temp content (extracted DB templates for CSS build)
+.tailwind-content/
 
 # Playwright
 test-results/
 playwright-report/
+
+# K8s secrets (generated from .secrets, never committed)
+deploy/overlays/*/secret.yaml
 
 # Temporary files
 *.tmp

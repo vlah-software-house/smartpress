@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: smartpress
+  annotations:
+    # Let cert-manager provision TLS for the testing domain.
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  rules:
+    - host: smartpress.test.vlah.sh
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: smartpress
+                port:
+                  name: http
+  tls:
+    - hosts:
+        - smartpress.test.vlah.sh
+      secretName: smartpress-testing-tls
