@@ -5,21 +5,26 @@
 # =============================================================================
 # YaaiCMS — Production Multi-Stage Dockerfile
 # =============================================================================
-# Stage 1: Build TailwindCSS + vendor frontend JS
+# Stage 1: Compile TailwindCSS (standalone CLI) + vendor frontend JS
 # Stage 2: Compile Go binary (with embedded assets + libvips for image processing)
 # Stage 3: Minimal runtime image with libvips shared libraries
 # =============================================================================
 
 # ---------------------------------------------------------------------------
-# Stage 1: Frontend assets
+# Stage 1: Frontend assets (no Node.js — uses Tailwind standalone CLI)
 # ---------------------------------------------------------------------------
-FROM node:22-alpine AS frontend
+FROM alpine:3.21 AS frontend
+
+ARG TAILWIND_VERSION=3.4.19
 
 WORKDIR /build
 
-# Install Tailwind dependencies.
-COPY package.json ./
-RUN npm install --ignore-scripts
+# Download Tailwind CSS standalone CLI. Bundles all first-party plugins
+# (@tailwindcss/forms, @tailwindcss/typography) — no npm needed.
+RUN apk add --no-cache curl \
+    && curl -sLo /usr/local/bin/tailwindcss \
+       "https://github.com/tailwindlabs/tailwindcss/releases/download/v${TAILWIND_VERSION}/tailwindcss-linux-x64" \
+    && chmod +x /usr/local/bin/tailwindcss
 
 # Copy Tailwind config and admin templates to scan for CSS classes.
 COPY tailwind.config.js ./
@@ -27,18 +32,18 @@ COPY web/static/css/input.css ./web/static/css/
 COPY internal/render/templates/ ./internal/render/templates/
 
 # Compile admin CSS (minified, tree-shaken to only used classes).
-RUN npx tailwindcss -i ./web/static/css/input.css \
+RUN tailwindcss -i ./web/static/css/input.css \
     -o ./web/static/css/admin.css --minify
 
 # Vendor HTMX, AlpineJS, and EasyMDE for offline serving.
 RUN mkdir -p web/static/js web/static/css \
-    && wget -q -O web/static/js/htmx.min.js \
+    && curl -sLo web/static/js/htmx.min.js \
        "https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" \
-    && wget -q -O web/static/js/alpine.min.js \
+    && curl -sLo web/static/js/alpine.min.js \
        "https://unpkg.com/alpinejs@3.14.8/dist/cdn.min.js" \
-    && wget -q -O web/static/js/easymde.min.js \
+    && curl -sLo web/static/js/easymde.min.js \
        "https://unpkg.com/easymde@2.20.0/dist/easymde.min.js" \
-    && wget -q -O web/static/css/easymde.min.css \
+    && curl -sLo web/static/css/easymde.min.css \
        "https://unpkg.com/easymde@2.20.0/dist/easymde.min.css"
 
 # ---------------------------------------------------------------------------

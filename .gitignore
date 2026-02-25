@@ -35,9 +35,12 @@ Thumbs.db
 # Docker volumes (local dev data)
 .docker-data/
 
-# Node modules (Tailwind build, Playwright)
+# Node modules (Playwright)
 node_modules/
 package-lock.json
+
+# Tailwind standalone CLI (downloaded via scripts/install-tailwind.sh)
+bin/tailwindcss
 
 # TailwindCSS build artifacts (generated in Docker or via npm scripts)
 web/static/css/admin.css

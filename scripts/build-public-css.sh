@@ -21,7 +21,7 @@
 #
 # Output: web/static/css/public.css
 #
-# Requirements: psql, npx (with tailwindcss installed)
+# Requirements: psql, tailwindcss (standalone CLI — see scripts/install-tailwind.sh)
 
 set -euo pipefail
 
@@ -68,7 +68,7 @@ fi
 
 echo "==> Compiling public TailwindCSS..."
 cd "$PROJECT_DIR"
-npx tailwindcss -i web/static/css/input.css -o "$OUTPUT_FILE" --minify 2>&1
+tailwindcss -i web/static/css/input.css -o "$OUTPUT_FILE" --minify 2>&1
 
 echo "==> Done: $OUTPUT_FILE ($(wc -c < "$OUTPUT_FILE") bytes)"
 
