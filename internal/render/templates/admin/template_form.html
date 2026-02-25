@@ -4,7 +4,7 @@
 {{define "title"}}{{if .Data.IsNew}}New{{else}}Edit{{end}} Template{{end}}
 
 {{define "content"}}
-<div class="max-w-4xl space-y-6">
+<div class="max-w-4xl space-y-6" x-data="templateEditor()">
     {{if .Data.Error}}
     <div class="rounded-md bg-red-50 border border-red-200 p-4">
         <p class="text-sm text-red-800">{{.Data.Error}}</p>
@@ -37,7 +37,7 @@
                 <div>
                     <label for="type" class="block text-sm font-medium text-gray-700">Type</label>
                     {{if .Data.IsNew}}
-                    <select id="type" name="type" required
+                    <select id="type" name="type" required x-model="templateType"
                             class="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
                                    focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
                         <option value="header" {{if and .Data.Item (eq (printf "%s" .Data.Item.Type) "header")}}selected{{end}}>Header</option>
@@ -61,17 +61,26 @@
                     <code>{{"{{"}} .Body {{"}}"}}</code>,
                     <code>{{"{{"}} .Header {{"}}"}}</code>,
                     <code>{{"{{"}} .Footer {{"}}"}}</code>,
+                    <code>{{"{{"}} .Excerpt {{"}}"}}</code>,
                     <code>{{"{{"}} .MetaDescription {{"}}"}}</code>,
                     <code>{{"{{"}} .MetaKeywords {{"}}"}}</code>,
+                    <code>{{"{{"}} .FeaturedImageURL {{"}}"}}</code>,
                     <code>{{"{{"}} .SiteName {{"}}"}}</code>,
-                    <code>{{"{{"}} .Year {{"}}"}}</code>
+                    <code>{{"{{"}} .Year {{"}}"}}</code>,
+                    <code>{{"{{"}} .Slug {{"}}"}}</code>,
+                    <code>{{"{{"}} .PublishedAt {{"}}"}}</code>
                 </p>
                 <p class="mt-1"><strong>Article loop:</strong>
                     <code>{{"{{"}} range .Posts {{"}}"}}</code> with
                     <code>{{"{{"}} .Title {{"}}"}}</code>,
                     <code>{{"{{"}} .Slug {{"}}"}}</code>,
                     <code>{{"{{"}} .Excerpt {{"}}"}}</code>,
+                    <code>{{"{{"}} .FeaturedImageURL {{"}}"}}</code>,
                     <code>{{"{{"}} .PublishedAt {{"}}"}}</code>
+                </p>
+                <p class="mt-1"><strong>Header / Footer:</strong>
+                    <code>{{"{{"}} .SiteName {{"}}"}}</code>,
+                    <code>{{"{{"}} .Year {{"}}"}}</code>
                 </p>
             </div>
         </div>
@@ -81,18 +90,83 @@
             <label for="html_content" class="block text-sm font-medium text-gray-700 mb-2">
                 HTML + TailwindCSS Template
             </label>
-            <textarea id="html_content" name="html_content" rows="20" required
+            <textarea id="html_content" name="html_content" rows="20" required x-ref="editor"
                       class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-mono shadow-sm
                              placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
                       placeholder="Paste your HTML + TailwindCSS template here...">{{if .Data.Item}}{{.Data.Item.HTMLContent}}{{end}}</textarea>
         </div>
 
+        <!-- AI Improve -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <button type="button" @click="aiOpen = !aiOpen"
+                    class="w-full flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div class="flex items-center gap-2">
+                    <svg class="h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z" />
+                    </svg>
+                    <span class="text-sm font-medium text-gray-900">AI Improve</span>
+                    <span class="text-xs text-gray-500">Describe changes and AI will update the template</span>
+                </div>
+                <svg class="h-4 w-4 text-gray-400 transition-transform" :class="aiOpen && 'rotate-180'" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                </svg>
+            </button>
+
+            <div x-show="aiOpen" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">
+                <div class="border-t border-gray-200 p-6 space-y-4">
+                    <!-- Chat messages -->
+                    <div x-show="aiMessages.length > 0" x-ref="aiChat"
+                         class="space-y-3 max-h-[300px] overflow-y-auto">
+                        <template x-for="(msg, idx) in aiMessages" :key="idx">
+                            <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+                                <div :class="msg.role === 'user'
+                                        ? 'bg-indigo-600 text-white rounded-lg rounded-br-sm px-3 py-2 max-w-[85%]'
+                                        : 'bg-gray-100 text-gray-800 rounded-lg rounded-bl-sm px-3 py-2 max-w-[85%]'">
+                                    <p class="text-sm whitespace-pre-wrap" x-text="msg.content"></p>
+                                </div>
+                            </div>
+                        </template>
+
+                        <template x-if="aiLoading">
+                            <div class="flex justify-start">
+                                <div class="bg-gray-100 rounded-lg rounded-bl-sm px-3 py-2">
+                                    <div class="flex items-center gap-2">
+                                        <svg class="animate-spin h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                        </svg>
+                                        <span class="text-xs text-gray-500">Improving template...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Input -->
+                    <div class="flex gap-2">
+                        <input type="text" x-model="aiPrompt" :disabled="aiLoading"
+                               @keydown.enter.prevent="aiImprove()"
+                               placeholder="e.g., Make the header sticky, add a dark mode toggle, improve mobile layout..."
+                               class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                                      placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none
+                                      disabled:bg-gray-50 disabled:text-gray-400">
+                        <button type="button" @click="aiImprove()" :disabled="aiLoading || !aiPrompt.trim()"
+                                class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500
+                                       transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span x-text="aiLoading ? 'Working...' : 'Improve'"></span>
+                        </button>
+                    </div>
+
+                    <p class="text-xs text-gray-400">AI will read your current template and apply the requested changes. You can undo by pressing Ctrl+Z in the editor.</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Preview -->
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6" x-data="{ showPreview: false }">
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div class="flex items-center justify-between mb-2">
                 <label class="block text-sm font-medium text-gray-700">Live Preview</label>
                 <button type="button"
-                        @click="showPreview = true"
                         hx-post="/admin/templates/preview"
                         hx-target="#preview-frame"
                         hx-include="[name='html_content']"
@@ -123,4 +197,85 @@
         </div>
     </form>
 </div>
+
+<script>
+function templateEditor() {
+    return {
+        templateType: '{{if and .Data.Item}}{{printf "%s" .Data.Item.Type}}{{else}}page{{end}}',
+        aiOpen: false,
+        aiPrompt: '',
+        aiMessages: [],
+        aiLoading: false,
+
+        async aiImprove() {
+            const text = this.aiPrompt.trim();
+            if (!text || this.aiLoading) return;
+
+            const currentHTML = this.$refs.editor.value;
+            if (!currentHTML.trim()) {
+                this.aiMessages.push({ role: 'assistant', content: 'The template editor is empty. Write some HTML first, or use the AI Template Builder to generate a template from scratch.' });
+                return;
+            }
+
+            this.aiMessages.push({ role: 'user', content: text });
+            this.aiPrompt = '';
+            this.aiLoading = true;
+
+            this.$nextTick(() => {
+                if (this.$refs.aiChat) {
+                    this.$refs.aiChat.scrollTop = this.$refs.aiChat.scrollHeight;
+                }
+            });
+
+            try {
+                const csrfToken = document.querySelector('[hx-headers]')?.getAttribute('hx-headers');
+                const csrf = csrfToken ? JSON.parse(csrfToken)['X-CSRF-Token'] : '';
+
+                const formData = new FormData();
+                formData.append('prompt', text);
+                formData.append('template_type', this.templateType);
+                formData.append('current_html', currentHTML);
+
+                const resp = await fetch('/admin/ai/generate-template', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrf },
+                    body: formData
+                });
+
+                const data = await resp.json();
+
+                if (data.error) {
+                    this.aiMessages.push({ role: 'assistant', content: 'Error: ' + data.error });
+                } else if (data.html) {
+                    this.$refs.editor.value = data.html;
+                    this.$refs.editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+                    let msg = data.message || 'Template updated.';
+                    if (!data.valid && data.validation_error) {
+                        msg += '\n\nWarning: ' + data.validation_error;
+                    }
+                    this.aiMessages.push({ role: 'assistant', content: msg });
+
+                    // Auto-refresh preview.
+                    htmx.ajax('POST', '/admin/templates/preview', {
+                        target: '#preview-frame',
+                        values: { html_content: data.html }
+                    });
+                } else {
+                    this.aiMessages.push({ role: 'assistant', content: data.message || 'No changes were generated.' });
+                }
+            } catch (err) {
+                this.aiMessages.push({ role: 'assistant', content: 'Network error: ' + err.message });
+            } finally {
+                this.aiLoading = false;
+                this.$nextTick(() => {
+                    if (this.$refs.aiChat) {
+                        this.$refs.aiChat.scrollTop = this.$refs.aiChat.scrollHeight;
+                    }
+                });
+            }
+        }
+    };
+}
+</script>
 {{end}}
