@@ -1417,6 +1417,16 @@ func (a *Admin) SettingsSave(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/settings", http.StatusSeeOther)
 }
 
+// --- Help ---
+
+// HelpPage renders the built-in help documentation page.
+func (a *Admin) HelpPage(w http.ResponseWriter, r *http.Request) {
+	a.renderer.Page(w, r, "help", &render.PageData{
+		Title:   "Help",
+		Section: "help",
+	})
+}
+
 // --- Categories ---
 
 // CategoriesList renders the category manager page.

@@ -177,6 +177,9 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 			// Settings
 			r.Get("/settings", admin.SettingsPage)
 			r.Post("/settings", admin.SettingsSave)
+
+			// Help
+			r.Get("/help", admin.HelpPage)
 		})
 	})
 

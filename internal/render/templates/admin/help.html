@@ -1,0 +1,618 @@
+{{/* Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me> */}}
+{{/* Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh> */}}
+{{/* All rights reserved. See LICENSE for details. */}}
+{{define "title"}}Help{{end}}
+
+{{define "content"}}
+<div x-data="{ showBackToTop: false }" @scroll.window="showBackToTop = window.scrollY > 400" class="space-y-6">
+
+    <!-- Page header -->
+    <div>
+        <h2 class="text-xl font-semibold text-gray-900">Help &amp; Documentation</h2>
+        <p class="mt-1 text-sm text-gray-500">Everything you need to know about managing your YaaiCMS site.</p>
+    </div>
+
+    <!-- Table of Contents -->
+    <div id="help-top" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <svg class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+            </svg>
+            Table of Contents
+        </h3>
+        <nav class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2">
+            <a href="#help-dashboard" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline py-1">1. Dashboard</a>
+            <a href="#help-posts" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline py-1">2. Posts</a>
+            <a href="#help-pages" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline py-1">3. Pages</a>
+            <a href="#help-editor" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline py-1">4. Content Editor</a>
+            <a href="#help-ai-assistant" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline py-1">5. AI Assistant</a>
+            <a href="#help-templates" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline py-1">6. AI Design (Templates)</a>
+            <a href="#help-media" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline py-1">7. Media Library</a>
+            <a href="#help-categories" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline py-1">8. Categories</a>
+            <a href="#help-users" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline py-1">9. Users</a>
+            <a href="#help-settings" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline py-1">10. Settings</a>
+            <a href="#help-sidebar" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline py-1">11. Sidebar &amp; Navigation</a>
+            <a href="#help-security" class="text-sm text-indigo-600 hover:text-indigo-800 hover:underline py-1">12. Security</a>
+        </nav>
+    </div>
+
+    <!-- 1. Dashboard -->
+    <div id="help-dashboard" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 scroll-mt-4">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-3">
+            <span class="flex-shrink-0 flex items-center justify-center h-7 w-7 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">1</span>
+            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+            </svg>
+            Dashboard
+        </h3>
+        <div class="space-y-3 text-sm text-gray-700">
+            <p>The Dashboard is your landing page after logging in. It provides a quick overview of your site's content.</p>
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Statistics cards:</p>
+                <ul class="list-disc list-inside space-y-1 ml-2 text-gray-600">
+                    <li><span class="font-medium text-gray-700">Total Posts</span> &mdash; number of blog posts (published and drafts)</li>
+                    <li><span class="font-medium text-gray-700">Total Pages</span> &mdash; number of static pages</li>
+                    <li><span class="font-medium text-gray-700">Media Files</span> &mdash; number of uploaded images and files</li>
+                    <li><span class="font-medium text-gray-700">Users</span> &mdash; number of registered user accounts</li>
+                </ul>
+            </div>
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Quick Actions:</p>
+                <ul class="list-disc list-inside space-y-1 ml-2 text-gray-600">
+                    <li><span class="font-medium text-gray-700">New Post</span> &mdash; jump straight to creating a new blog post</li>
+                    <li><span class="font-medium text-gray-700">New Page</span> &mdash; create a new static page</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Posts -->
+    <div id="help-posts" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 scroll-mt-4">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-3">
+            <span class="flex-shrink-0 flex items-center justify-center h-7 w-7 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">2</span>
+            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 0 1-2.25 2.25M16.5 7.5V18a2.25 2.25 0 0 0 2.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 0 0 2.25 2.25h13.5" />
+            </svg>
+            Posts
+        </h3>
+        <div class="space-y-3 text-sm text-gray-700">
+            <p>Posts are time-stamped blog entries displayed in reverse chronological order on your public site.</p>
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">List view columns:</p>
+                <ul class="list-disc list-inside space-y-1 ml-2 text-gray-600">
+                    <li><span class="font-medium text-gray-700">Title</span> &mdash; the post headline</li>
+                    <li><span class="font-medium text-gray-700">Status</span> &mdash; Published (visible to readers) or Draft (hidden, work-in-progress)</li>
+                    <li><span class="font-medium text-gray-700">Date</span> &mdash; when the post was created or last updated</li>
+                    <li><span class="font-medium text-gray-700">Actions</span> &mdash; View (open on public site), Edit, or Delete the post</li>
+                </ul>
+            </div>
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Creating a post:</p>
+                <p class="text-gray-600">Click <span class="font-medium text-gray-700">New Post</span> to open the content editor. Fill in the title, write your content using the Markdown editor, set a category, optionally add a featured image, and choose Draft or Published status. See sections 4 and 5 for editor and AI assistant details.</p>
+            </div>
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Post-specific fields (not available on Pages):</p>
+                <ul class="list-disc list-inside space-y-1 ml-2 text-gray-600">
+                    <li><span class="font-medium text-gray-700">Featured Image</span> &mdash; upload an image or generate one with AI (see Media section)</li>
+                    <li><span class="font-medium text-gray-700">Category</span> &mdash; assign a single category from the dropdown</li>
+                </ul>
+            </div>
+        </div>
+        <!-- Tip callout -->
+        <div class="mt-4 rounded-md bg-blue-50 border border-blue-200 p-3">
+            <div class="flex gap-2">
+                <svg class="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                </svg>
+                <p class="text-sm text-blue-800">Save your post as <span class="font-medium">Draft</span> first to preview it before publishing. You can switch to Published at any time.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Pages -->
+    <div id="help-pages" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 scroll-mt-4">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-3">
+            <span class="flex-shrink-0 flex items-center justify-center h-7 w-7 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">3</span>
+            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+            </svg>
+            Pages
+        </h3>
+        <div class="space-y-3 text-sm text-gray-700">
+            <p>Pages are static content (e.g., About, Contact, Privacy Policy) that do not appear in the blog feed. They share the same editor as posts but without Featured Image or Category fields.</p>
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">How Pages differ from Posts:</p>
+                <ul class="list-disc list-inside space-y-1 ml-2 text-gray-600">
+                    <li>No featured image field</li>
+                    <li>No category assignment</li>
+                    <li>Not listed in the blog timeline &mdash; accessed by their URL slug</li>
+                    <li>Ideal for evergreen content that does not change often</li>
+                </ul>
+            </div>
+            <p class="text-gray-600">Click <span class="font-medium text-gray-700">New Page</span> to create one. The editing workflow is identical to posts (see section 4).</p>
+        </div>
+    </div>
+
+    <!-- 4. Content Editor -->
+    <div id="help-editor" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 scroll-mt-4">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-3">
+            <span class="flex-shrink-0 flex items-center justify-center h-7 w-7 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">4</span>
+            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+            </svg>
+            Content Editor
+        </h3>
+        <div class="space-y-4 text-sm text-gray-700">
+            <p>The content editor is used for both Posts and Pages. It is split into a main editing area on the left and an AI assistant panel on the right.</p>
+
+            <!-- AI Content Generator -->
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">AI Content Generator (top of editor):</p>
+                <p class="text-gray-600">When the body field is empty, a prominent AI Content Generator panel appears at the top. Describe the topic you want to write about and click Generate. The AI will write a full article draft in Markdown, pre-filling the editor so you can refine it.</p>
+            </div>
+
+            <!-- Fields -->
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Editor fields:</p>
+                <ul class="list-disc list-inside space-y-1 ml-2 text-gray-600">
+                    <li><span class="font-medium text-gray-700">Title</span> &mdash; the headline shown to readers</li>
+                    <li><span class="font-medium text-gray-700">Slug</span> &mdash; URL-friendly identifier, auto-generated from the title (editable)</li>
+                    <li><span class="font-medium text-gray-700">Featured Image</span> &mdash; (posts only) upload from your device, pick from Media Library, or generate with AI. A provider selector lets you choose the image generation service.</li>
+                    <li><span class="font-medium text-gray-700">Category</span> &mdash; (posts only) select from existing categories</li>
+                    <li><span class="font-medium text-gray-700">Body</span> &mdash; Markdown editor (see toolbar below)</li>
+                    <li><span class="font-medium text-gray-700">Excerpt</span> &mdash; short summary displayed in post listings</li>
+                    <li><span class="font-medium text-gray-700">SEO Metadata</span> &mdash; meta description and meta keywords for search engines</li>
+                    <li><span class="font-medium text-gray-700">Revision Note</span> &mdash; describe what changed in this edit (for your own reference)</li>
+                    <li><span class="font-medium text-gray-700">Status</span> &mdash; Draft (hidden) or Published (live on site)</li>
+                </ul>
+            </div>
+
+            <!-- Markdown toolbar -->
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Markdown editor toolbar:</p>
+                <div class="bg-gray-50 rounded-md p-3 border border-gray-100">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs text-gray-600">
+                        <span><span class="font-mono font-medium text-gray-800">B</span> &mdash; Bold</span>
+                        <span><span class="font-mono font-medium text-gray-800">I</span> &mdash; Italic</span>
+                        <span><span class="font-mono font-medium text-gray-800">H1-H3</span> &mdash; Headings</span>
+                        <span><span class="font-mono font-medium text-gray-800">&gt;</span> &mdash; Blockquote</span>
+                        <span><span class="font-mono font-medium text-gray-800">UL / OL</span> &mdash; Lists</span>
+                        <span><span class="font-mono font-medium text-gray-800">Link</span> &mdash; Insert link</span>
+                        <span><span class="font-mono font-medium text-gray-800">Image</span> &mdash; Insert image (opens Media Picker)</span>
+                        <span><span class="font-mono font-medium text-gray-800">Table</span> &mdash; Insert table</span>
+                        <span><span class="font-mono font-medium text-gray-800">Code</span> &mdash; Code block</span>
+                        <span><span class="font-mono font-medium text-gray-800">Preview</span> &mdash; Toggle rendered preview</span>
+                        <span><span class="font-mono font-medium text-gray-800">Side-by-side</span> &mdash; Editor + preview split</span>
+                        <span><span class="font-mono font-medium text-gray-800">Fullscreen</span> &mdash; Distraction-free writing</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Tip callout -->
+        <div class="mt-4 rounded-md bg-blue-50 border border-blue-200 p-3">
+            <div class="flex gap-2">
+                <svg class="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                </svg>
+                <p class="text-sm text-blue-800">Use <span class="font-medium">Side-by-side</span> mode to see a live preview while you type. The Image toolbar button opens the Media Picker where you can upload or AI-generate images inline.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. AI Assistant -->
+    <div id="help-ai-assistant" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 scroll-mt-4">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-3">
+            <span class="flex-shrink-0 flex items-center justify-center h-7 w-7 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">5</span>
+            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+            </svg>
+            AI Assistant
+        </h3>
+        <div class="space-y-4 text-sm text-gray-700">
+            <p>The AI Assistant panel sits on the right side of the content editor. It uses the currently active AI provider (configured in Settings) to help you write and optimize content.</p>
+
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Available AI actions:</p>
+                <ul class="list-none space-y-3 ml-2">
+                    <li class="flex gap-2">
+                        <span class="flex-shrink-0 inline-flex items-center justify-center h-5 w-5 rounded bg-indigo-100 text-indigo-700 text-xs font-bold mt-0.5">S</span>
+                        <div>
+                            <span class="font-medium text-gray-800">Suggest Titles</span>
+                            <p class="text-gray-600 mt-0.5">Generates several alternative title suggestions based on your current content. Click any suggestion to apply it.</p>
+                        </div>
+                    </li>
+                    <li class="flex gap-2">
+                        <span class="flex-shrink-0 inline-flex items-center justify-center h-5 w-5 rounded bg-indigo-100 text-indigo-700 text-xs font-bold mt-0.5">E</span>
+                        <div>
+                            <span class="font-medium text-gray-800">Generate Excerpt</span>
+                            <p class="text-gray-600 mt-0.5">Creates a concise summary of your post suitable for listings and social media previews.</p>
+                        </div>
+                    </li>
+                    <li class="flex gap-2">
+                        <span class="flex-shrink-0 inline-flex items-center justify-center h-5 w-5 rounded bg-indigo-100 text-indigo-700 text-xs font-bold mt-0.5">M</span>
+                        <div>
+                            <span class="font-medium text-gray-800">SEO Metadata</span>
+                            <p class="text-gray-600 mt-0.5">Generates a meta description and keywords optimized for search engines based on your content.</p>
+                        </div>
+                    </li>
+                    <li class="flex gap-2">
+                        <span class="flex-shrink-0 inline-flex items-center justify-center h-5 w-5 rounded bg-indigo-100 text-indigo-700 text-xs font-bold mt-0.5">R</span>
+                        <div>
+                            <span class="font-medium text-gray-800">Rewrite Content</span>
+                            <p class="text-gray-600 mt-0.5">Provide instructions in the suggestion field (e.g., &ldquo;make it more formal&rdquo; or &ldquo;simplify the language&rdquo;) and the AI will rewrite your content accordingly.</p>
+                        </div>
+                    </li>
+                    <li class="flex gap-2">
+                        <span class="flex-shrink-0 inline-flex items-center justify-center h-5 w-5 rounded bg-indigo-100 text-indigo-700 text-xs font-bold mt-0.5">T</span>
+                        <div>
+                            <span class="font-medium text-gray-800">Extract Tags</span>
+                            <p class="text-gray-600 mt-0.5">Analyzes your content and suggests relevant tags/keywords that you can use as meta keywords.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <!-- Tip callout -->
+        <div class="mt-4 rounded-md bg-blue-50 border border-blue-200 p-3">
+            <div class="flex gap-2">
+                <svg class="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                </svg>
+                <p class="text-sm text-blue-800">Write your content first, then use the AI assistant to polish it. The AI reads your current editor content, so the more you write, the better the suggestions will be.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. AI Design (Templates) -->
+    <div id="help-templates" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 scroll-mt-4">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-3">
+            <span class="flex-shrink-0 flex items-center justify-center h-7 w-7 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">6</span>
+            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+            </svg>
+            AI Design (Templates)
+        </h3>
+        <div class="space-y-4 text-sm text-gray-700">
+            <p>Templates control the visual appearance of your public website. YaaiCMS uses AI to generate HTML + Tailwind CSS templates that are stored in the database and compiled at render time.</p>
+
+            <!-- Template types -->
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Template types:</p>
+                <ul class="list-disc list-inside space-y-1 ml-2 text-gray-600">
+                    <li><span class="font-medium text-gray-700">Header</span> &mdash; site-wide navigation bar and branding at the top of every page</li>
+                    <li><span class="font-medium text-gray-700">Footer</span> &mdash; site-wide footer with links, copyright, and other information</li>
+                    <li><span class="font-medium text-gray-700">Page</span> &mdash; layout for static pages (About, Contact, etc.)</li>
+                    <li><span class="font-medium text-gray-700">Article Loop</span> &mdash; layout for blog post listings and individual article views</li>
+                </ul>
+            </div>
+
+            <!-- List view -->
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Template list view:</p>
+                <p class="text-gray-600">Shows all templates with their Name, Type, Version number, Status (Active or Inactive), and action buttons. Only one template of each type can be Active at a time. Use the <span class="font-medium text-gray-700">Activate</span> button to make a template the live version.</p>
+            </div>
+
+            <!-- AI Template Builder -->
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Generate with AI:</p>
+                <p class="text-gray-600">Click <span class="font-medium text-gray-700">Generate with AI</span> to open the AI Template Builder. It features:</p>
+                <ul class="list-disc list-inside space-y-1 ml-4 text-gray-600">
+                    <li>A template type selector (header, footer, page, article loop)</li>
+                    <li>A preview content selector to see the template with sample data</li>
+                    <li>A chat-like prompt interface &mdash; describe the design you want in plain language</li>
+                    <li>A live preview panel showing the rendered result in real time</li>
+                </ul>
+            </div>
+
+            <!-- Restyle All -->
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Restyle All:</p>
+                <p class="text-gray-600">The <span class="font-medium text-gray-700">Restyle All</span> tab lets you regenerate all four template types at once with a unified design theme. This ensures visual consistency across your entire site.</p>
+            </div>
+
+            <!-- Design Themes -->
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Design Themes:</p>
+                <p class="text-gray-600">Create and manage reusable design themes to maintain a consistent visual identity. A theme captures the overall style preferences (colors, typography, layout patterns) and can be applied when generating or restyling templates.</p>
+            </div>
+        </div>
+        <!-- Tip callout -->
+        <div class="mt-4 rounded-md bg-blue-50 border border-blue-200 p-3">
+            <div class="flex gap-2">
+                <svg class="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                </svg>
+                <p class="text-sm text-blue-800">Use <span class="font-medium">Restyle All</span> with a design theme for a quick, cohesive site redesign. You can always fine-tune individual templates afterward.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. Media Library -->
+    <div id="help-media" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 scroll-mt-4">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-3">
+            <span class="flex-shrink-0 flex items-center justify-center h-7 w-7 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">7</span>
+            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 0 0 1.5-1.5V4.5a1.5 1.5 0 0 0-1.5-1.5H3.75a1.5 1.5 0 0 0-1.5 1.5v15a1.5 1.5 0 0 0 1.5 1.5Zm11.03-12.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
+            </svg>
+            Media Library
+        </h3>
+        <div class="space-y-4 text-sm text-gray-700">
+            <p>The Media Library stores all images and files uploaded to your site. Files are stored in an S3-compatible object store.</p>
+
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Features:</p>
+                <ul class="list-disc list-inside space-y-1 ml-2 text-gray-600">
+                    <li><span class="font-medium text-gray-700">Grid view</span> &mdash; visual thumbnail grid of all uploaded images</li>
+                    <li><span class="font-medium text-gray-700">Upload</span> &mdash; click the Upload button to add new files from your device</li>
+                    <li><span class="font-medium text-gray-700">Regenerate All</span> &mdash; recreates image variants (thumbnails, optimized sizes) for all media</li>
+                    <li><span class="font-medium text-gray-700">File info</span> &mdash; each item shows filename, file type, and size</li>
+                </ul>
+            </div>
+
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Supported formats and limits:</p>
+                <div class="bg-gray-50 rounded-md p-3 border border-gray-100">
+                    <ul class="list-disc list-inside space-y-1 text-gray-600">
+                        <li>Formats: PNG, JPG/JPEG, WebP</li>
+                        <li>Maximum file size: 50 MB per file</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">AI image generation:</p>
+                <p class="text-gray-600">When setting a featured image on a post, you can generate an image using AI instead of uploading one. A provider selector lets you choose which AI image generation service to use. The generated image is automatically added to your Media Library.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 8. Categories -->
+    <div id="help-categories" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 scroll-mt-4">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-3">
+            <span class="flex-shrink-0 flex items-center justify-center h-7 w-7 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">8</span>
+            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" />
+            </svg>
+            Categories
+        </h3>
+        <div class="space-y-4 text-sm text-gray-700">
+            <p>Categories organize your posts into a hierarchical taxonomy. Each post can be assigned to one category.</p>
+
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Managing categories:</p>
+                <ul class="list-disc list-inside space-y-1 ml-2 text-gray-600">
+                    <li><span class="font-medium text-gray-700">Add Category</span> &mdash; fill in name, slug, description, and optionally select a parent category to create subcategories</li>
+                    <li><span class="font-medium text-gray-700">Edit</span> &mdash; modify an existing category's name, slug, or description</li>
+                    <li><span class="font-medium text-gray-700">Delete</span> &mdash; remove a category (posts in that category become uncategorized)</li>
+                </ul>
+            </div>
+
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Drag-and-drop reordering:</p>
+                <p class="text-gray-600">Categories are displayed as a hierarchical tree. Use the drag handle (three horizontal lines) on the left of each category to drag it into a new position. After rearranging, click the <span class="font-medium text-gray-700">Save Order</span> button that appears to persist your changes.</p>
+            </div>
+        </div>
+        <!-- Warning callout -->
+        <div class="mt-4 rounded-md bg-amber-50 border border-amber-200 p-3">
+            <div class="flex gap-2">
+                <svg class="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                </svg>
+                <p class="text-sm text-amber-800">Deleting a category does not delete its posts. They will simply become uncategorized. Remember to click <span class="font-medium">Save Order</span> after rearranging &mdash; changes are not saved automatically.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 9. Users -->
+    <div id="help-users" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 scroll-mt-4">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-3">
+            <span class="flex-shrink-0 flex items-center justify-center h-7 w-7 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">9</span>
+            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+            </svg>
+            Users
+        </h3>
+        <div class="space-y-4 text-sm text-gray-700">
+            <div class="rounded-md bg-amber-50 border border-amber-200 p-3">
+                <div class="flex gap-2">
+                    <svg class="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                    </svg>
+                    <p class="text-sm text-amber-800"><span class="font-medium">Admin only.</span> This section is only visible to users with the Admin role.</p>
+                </div>
+            </div>
+
+            <p>Manage the user accounts that can log in to the admin panel.</p>
+
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">User list columns:</p>
+                <ul class="list-disc list-inside space-y-1 ml-2 text-gray-600">
+                    <li><span class="font-medium text-gray-700">Avatar</span> &mdash; user profile picture (initials if none set)</li>
+                    <li><span class="font-medium text-gray-700">Name</span> &mdash; display name</li>
+                    <li><span class="font-medium text-gray-700">Email</span> &mdash; login email address</li>
+                    <li><span class="font-medium text-gray-700">Role</span> &mdash; Admin, Editor, or Author</li>
+                    <li><span class="font-medium text-gray-700">2FA Status</span> &mdash; Active (set up) or Pending setup</li>
+                </ul>
+            </div>
+
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Roles:</p>
+                <div class="bg-gray-50 rounded-md p-3 border border-gray-100">
+                    <ul class="list-disc list-inside space-y-1 text-gray-600">
+                        <li><span class="font-medium text-gray-700">Admin</span> &mdash; full access including Users, Settings, and all content management</li>
+                        <li><span class="font-medium text-gray-700">Editor</span> &mdash; can manage posts, pages, categories, media, and templates</li>
+                        <li><span class="font-medium text-gray-700">Author</span> &mdash; can create and manage their own posts and pages</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Actions:</p>
+                <ul class="list-disc list-inside space-y-1 ml-2 text-gray-600">
+                    <li><span class="font-medium text-gray-700">New User</span> &mdash; create a new user account with name, email, password, and role</li>
+                    <li><span class="font-medium text-gray-700">Reset 2FA</span> &mdash; if a user loses access to their authenticator app, an admin can reset their 2FA. The user will be prompted to set up 2FA again on their next login.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 10. Settings -->
+    <div id="help-settings" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 scroll-mt-4">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-3">
+            <span class="flex-shrink-0 flex items-center justify-center h-7 w-7 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">10</span>
+            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            </svg>
+            Settings
+        </h3>
+        <div class="space-y-4 text-sm text-gray-700">
+            <div class="rounded-md bg-amber-50 border border-amber-200 p-3">
+                <div class="flex gap-2">
+                    <svg class="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                    </svg>
+                    <p class="text-sm text-amber-800"><span class="font-medium">Admin only.</span> This section is only visible to users with the Admin role.</p>
+                </div>
+            </div>
+
+            <!-- General settings -->
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">General settings:</p>
+                <ul class="list-disc list-inside space-y-1 ml-2 text-gray-600">
+                    <li><span class="font-medium text-gray-700">Site Title</span> &mdash; displayed in the browser tab and site header</li>
+                    <li><span class="font-medium text-gray-700">Tagline</span> &mdash; a short description or slogan for the site</li>
+                    <li><span class="font-medium text-gray-700">Site URL</span> &mdash; the public URL of your site (currently read-only)</li>
+                    <li><span class="font-medium text-gray-700">Posts per Page</span> &mdash; how many posts appear per page on the public blog listing</li>
+                    <li><span class="font-medium text-gray-700">Timezone</span> &mdash; used for displaying dates and scheduling content</li>
+                    <li><span class="font-medium text-gray-700">Language</span> &mdash; sets the <code class="text-xs bg-gray-100 rounded px-1">lang</code> attribute on public pages</li>
+                    <li><span class="font-medium text-gray-700">Date Format</span> &mdash; how dates are rendered on the public site (ISO, US, EU, long form, etc.)</li>
+                </ul>
+            </div>
+
+            <!-- AI Provider -->
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">AI Provider configuration:</p>
+                <p class="text-gray-600">Switch between the four supported AI providers for content generation and template design. Each provider card shows:</p>
+                <ul class="list-disc list-inside space-y-1 ml-4 text-gray-600">
+                    <li><span class="font-medium text-gray-700">Provider name</span> &mdash; OpenAI, Google Gemini, Anthropic Claude, or Mistral</li>
+                    <li><span class="font-medium text-gray-700">Model</span> &mdash; the specific model being used (e.g., gpt-4o, gemini-3.1-pro-preview)</li>
+                    <li><span class="font-medium text-gray-700">API key env var</span> &mdash; which environment variable must be set for this provider</li>
+                    <li><span class="font-medium text-gray-700">Status</span> &mdash; Active (currently in use), Available (key configured, ready to activate), or No key (environment variable not set)</li>
+                </ul>
+                <p class="text-gray-600 mt-2">Click <span class="font-medium text-gray-700">Activate</span> on any Available provider to switch. The change takes effect immediately &mdash; no restart required.</p>
+            </div>
+        </div>
+        <!-- Tip callout -->
+        <div class="mt-4 rounded-md bg-blue-50 border border-blue-200 p-3">
+            <div class="flex gap-2">
+                <svg class="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                </svg>
+                <p class="text-sm text-blue-800">AI API keys are loaded from environment variables, not stored in the database. To add a new provider, set the corresponding environment variable (e.g., <code class="text-xs bg-blue-100 rounded px-1">OPENAI_API_KEY</code>) and restart the application.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 11. Sidebar & Navigation -->
+    <div id="help-sidebar" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 scroll-mt-4">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-3">
+            <span class="flex-shrink-0 flex items-center justify-center h-7 w-7 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">11</span>
+            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+            Sidebar &amp; Navigation
+        </h3>
+        <div class="space-y-4 text-sm text-gray-700">
+            <p>The left sidebar is the primary navigation for the admin panel. It is visible on desktop screens and accessible via the menu button on mobile.</p>
+
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Sidebar sections:</p>
+                <ul class="list-disc list-inside space-y-1 ml-2 text-gray-600">
+                    <li><span class="font-medium text-gray-700">Main navigation</span> &mdash; Dashboard, Posts, Pages, AI Design, Media, Categories</li>
+                    <li><span class="font-medium text-gray-700">Admin section</span> &mdash; Users and Settings (only visible to Admin users)</li>
+                    <li><span class="font-medium text-gray-700">Visit Website</span> &mdash; opens your public site in a new browser tab</li>
+                </ul>
+            </div>
+
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Collapsing the sidebar:</p>
+                <p class="text-gray-600">Click the <span class="font-medium text-gray-700">Collapse</span> button at the bottom of the sidebar to minimize it to icons only. This gives you more horizontal space for the content area. Click the expand button (double chevron) to restore it. Your preference is saved in the browser and persists across sessions.</p>
+            </div>
+
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Mobile navigation:</p>
+                <p class="text-gray-600">On smaller screens, the sidebar is hidden by default. Tap the hamburger menu icon in the top-left corner to open it as a slide-over panel. Tap outside the panel or use the close button to dismiss it.</p>
+            </div>
+
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">User menu:</p>
+                <p class="text-gray-600">In the top-right corner, click your avatar/name to open a dropdown with your display name, email, and a <span class="font-medium text-gray-700">Sign out</span> option.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 12. Security -->
+    <div id="help-security" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 scroll-mt-4">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-3">
+            <span class="flex-shrink-0 flex items-center justify-center h-7 w-7 rounded-full bg-indigo-100 text-indigo-700 text-sm font-bold">12</span>
+            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+            </svg>
+            Security
+        </h3>
+        <div class="space-y-4 text-sm text-gray-700">
+            <p>YaaiCMS enforces several security measures to protect your site and user accounts.</p>
+
+            <!-- 2FA -->
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Two-Factor Authentication (2FA):</p>
+                <ul class="list-disc list-inside space-y-1 ml-2 text-gray-600">
+                    <li>2FA is <span class="font-medium text-gray-700">mandatory</span> for all user accounts &mdash; it cannot be disabled</li>
+                    <li>Uses TOTP (Time-based One-Time Password) compatible with any authenticator app (Google Authenticator, Authy, 1Password, etc.)</li>
+                    <li>On first login, you will be guided through 2FA setup with a QR code to scan</li>
+                    <li>After setup, every login requires both your password and a 6-digit code from your authenticator app</li>
+                    <li>If you lose access to your authenticator, ask an Admin to reset your 2FA from the Users page</li>
+                </ul>
+            </div>
+
+            <!-- CSRF -->
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">CSRF protection:</p>
+                <p class="text-gray-600">All forms include a CSRF (Cross-Site Request Forgery) token. This prevents malicious websites from performing actions on your behalf. Tokens are automatically managed &mdash; no action needed from you.</p>
+            </div>
+
+            <!-- Sessions -->
+            <div class="space-y-2">
+                <p class="font-medium text-gray-900">Session management:</p>
+                <p class="text-gray-600">Sessions are stored server-side in Valkey (a Redis-compatible store). Your session expires after a period of inactivity, requiring you to log in again. Use the <span class="font-medium text-gray-700">Sign out</span> option in the user menu to end your session explicitly.</p>
+            </div>
+        </div>
+        <!-- Warning callout -->
+        <div class="mt-4 rounded-md bg-amber-50 border border-amber-200 p-3">
+            <div class="flex gap-2">
+                <svg class="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                </svg>
+                <p class="text-sm text-amber-800">Never share your authenticator QR code or recovery codes. If you suspect your account has been compromised, ask an Admin to reset your 2FA immediately and change your password.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back to top button -->
+    <button x-show="showBackToTop"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 translate-y-2"
+            x-transition:enter-end="opacity-100 translate-y-0"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100 translate-y-0"
+            x-transition:leave-end="opacity-0 translate-y-2"
+            @click="document.getElementById('help-top').scrollIntoView({ behavior: 'smooth' })"
+            class="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-lg hover:bg-indigo-500 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" />
+        </svg>
+        Back to top
+    </button>
+</div>
+{{end}}
