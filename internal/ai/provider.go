@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 // Package ai provides a unified interface for interacting with multiple
 // LLM providers (OpenAI, Gemini, Claude, Mistral). Each provider implements
 // the Provider interface, and the Registry selects the active one by name.

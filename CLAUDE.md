@@ -1,3 +1,4 @@
+uber
 # **AI Assistant Instructions & Project Context**
 
 This file contains the core project specifications, technical stack, and strict workflow rules for any AI coding assistant or tool operating in this repository.  
@@ -51,15 +52,17 @@ Follow this exact sequence for every new task, feature, fix, or patch:
 * **Kubernetes (K8s):**  
   * Deploy to the testing environment using Kubernetes manifests.  
   * Keep manifests updated, modular, and customizable for multiple environments (e.g., using Kustomize or Helm if appropriate, or structured manifest directories).  
+  * Environment uses K3S with Cert-Manager and Traefik Ingress, with current new Traefik CRDs. Do not set any file saves in containers, and do not create volumes.
 * **Seeding Data:** Write and maintain database seeding scripts/manifests based on the application specifications to ensure a populated testing environment.  
 * **Secrets Management:** Two environment files exist, both gitignored:
   * **`.secrets`** — Testing/staging environment credentials for Kubernetes deployment and human QA. Contains DB credentials for the remote testing cluster, Valkey credentials, testing URL, and AI API keys. **Always ask the user for any missing variables** before deploying. Do not hardcode secrets.
   * **`.env`** — Local development configuration. The AI agent may freely create and manage this file with whatever credentials are needed for local Docker services (PostgreSQL, Valkey). AI provider keys may be copied from `.secrets` for local use since they are service-level keys, not environment-specific.
 * **Database Management:** Use the postgres user password to check existence of defined database name, and user that must be its owner. Managed database host, postgres user password, user and password should be availalbe in .secrets`
+* **Media files** Will work with S3 compatible object store (most cases CEPH based).
 
 ## **6\. AI Provider Integration**
 
-SmartPress supports **four AI providers** for content generation and template design. All providers follow a common interface and can be switched at runtime from the admin Settings page.
+YaaiCMS supports **four AI providers** for content generation and template design. All providers follow a common interface and can be switched at runtime from the admin Settings page.
 
 ### Supported Providers
 

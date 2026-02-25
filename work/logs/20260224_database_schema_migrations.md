@@ -19,7 +19,7 @@
   - `user.go` — User struct with Role type, 2FA helpers
   - `content.go` — Content struct with ContentType and ContentStatus types
   - `template.go` — Template struct with TemplateType
-- Wired database into `cmd/smartpress/main.go` (connect → migrate → seed)
+- Wired database into `cmd/yaaicms/main.go` (connect → migrate → seed)
 
 ## 2FA Design Decisions
 - `totp_enabled = false` on new users → forces 2FA setup on first login
@@ -28,5 +28,5 @@
 
 ## Verification
 - All 4 migrations applied successfully against PostgreSQL 17
-- Admin user seeded: admin@smartpress.local / admin
+- Admin user seeded: admin@yaaicms.local / admin
 - Tables confirmed: users, content, templates, cache_invalidation_log, goose_db_version

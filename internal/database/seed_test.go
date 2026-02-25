@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 package database
 
 import (
@@ -28,7 +32,7 @@ func TestSeedIdempotent(t *testing.T) {
 
 	// Verify admin user exists.
 	var userCount int
-	if err := db.QueryRow("SELECT COUNT(*) FROM users WHERE email = 'admin@smartpress.local'").Scan(&userCount); err != nil {
+	if err := db.QueryRow("SELECT COUNT(*) FROM users WHERE email = 'admin@yaaicms.local'").Scan(&userCount); err != nil {
 		t.Fatalf("count admin users: %v", err)
 	}
 	if userCount < 1 {

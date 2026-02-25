@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
 import { test, expect } from '@playwright/test';
 
 test.describe('Login Flow', () => {
@@ -30,8 +33,8 @@ test.describe('Login Flow', () => {
   test('login page has proper structure', async ({ page }) => {
     await page.goto('/admin/login');
 
-    // Check page elements — h1 contains "SmartPress".
-    await expect(page.locator('h1')).toContainText('SmartPress');
+    // Check page elements — h1 contains "YaaiCMS".
+    await expect(page.locator('h1')).toContainText('YaaiCMS');
     await expect(page.locator('#email')).toBeVisible();
     await expect(page.locator('#password')).toBeVisible();
     await expect(page.locator('button[type="submit"]')).toBeVisible();

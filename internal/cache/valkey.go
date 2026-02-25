@@ -1,5 +1,9 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 // Package cache provides Valkey (Redis-compatible) client initialization
-// and page caching functionality for the SmartPress rendering engine.
+// and page caching functionality for the YaaiCMS rendering engine.
 package cache
 
 import (

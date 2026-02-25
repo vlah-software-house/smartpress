@@ -18,7 +18,7 @@
 
 ## Step 13: Infrastructure
 - [x] Production Dockerfile (multi-stage build: Node→Go→Alpine, non-root user)
-- [x] Kubernetes manifests (Kustomize base + testing overlay for smartpress.test.vlah.sh)
+- [x] Kubernetes manifests (Kustomize base + testing overlay for yaaicms.test.vlah.sh)
 - [x] TailwindCSS build pipeline (admin: compile-time from templates; public: scripts/build-public-css.sh from DB)
 - [x] Static file serving (embedded FS at /static/*, conditional CDN/local in templates)
 - [x] 2fa_verify standalone template fix

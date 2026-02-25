@@ -6,9 +6,9 @@
 ## What was done
 
 - Initialized git repository with `main` branch
-- Created Go module (`go mod init smartpress`) — Go 1.26.0
+- Created Go module (`go mod init yaaicms`) — Go 1.26.0
 - Established standard Go project layout:
-  - `cmd/smartpress/` — application entry point
+  - `cmd/yaaicms/` — application entry point
   - `internal/` — private packages (config, database, handlers, middleware, models, cache, templates)
   - `migrations/` — SQL migration files (empty, ready for Step 2)
   - `web/` — frontend assets and HTML templates
@@ -16,7 +16,7 @@
 - Created `docker-compose.yml` with PostgreSQL 17 and Valkey 8
 - Created `.secrets.example` as a template for environment variables
 - Created `.gitignore` covering Go, Docker, Node, IDE, and OS artifacts
-- Created `cmd/smartpress/main.go` with:
+- Created `cmd/yaaicms/main.go` with:
   - Structured logging (slog)
   - Configuration loading from environment
   - Health check endpoint (`GET /health`)

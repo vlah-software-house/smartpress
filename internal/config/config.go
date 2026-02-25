@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 // Package config handles application configuration loading from environment
 // variables. It provides a centralized Config struct used across the application.
 package config
@@ -68,9 +72,9 @@ func Load() (*Config, error) {
 
 		DBHost:     envOrDefault("POSTGRES_HOST", "localhost"),
 		DBPort:     envOrDefault("POSTGRES_PORT", "5432"),
-		DBUser:     envOrDefault("POSTGRES_USER", "smartpress"),
+		DBUser:     envOrDefault("POSTGRES_USER", "yaaicms"),
 		DBPassword: envOrDefault("POSTGRES_PASSWORD", "changeme"),
-		DBName:     envOrDefault("POSTGRES_DB", "smartpress"),
+		DBName:     envOrDefault("POSTGRES_DB", "yaaicms"),
 
 		ValkeyHost:     envOrDefault("VALKEY_HOST", "localhost"),
 		ValkeyPort:     envOrDefault("VALKEY_PORT", "6379"),
@@ -98,8 +102,8 @@ func Load() (*Config, error) {
 		S3Region:        envOrDefault("S3_REGION", "fsn1"),
 		S3AccessKey:     os.Getenv("S3_ACCESS_KEY"),
 		S3SecretKey:     os.Getenv("S3_SECRET_KEY"),
-		S3BucketPublic:  envOrDefault("S3_BUCKET_PUBLIC", "smartpress-public"),
-		S3BucketPrivate: envOrDefault("S3_BUCKET_PRIVATE", "smartpress-private"),
+		S3BucketPublic:  envOrDefault("S3_BUCKET_PUBLIC", "yaaicms-public"),
+		S3BucketPrivate: envOrDefault("S3_BUCKET_PRIVATE", "yaaicms-private"),
 		S3PublicURL:     os.Getenv("S3_PUBLIC_URL"),
 	}
 

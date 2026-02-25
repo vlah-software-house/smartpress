@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 package handlers
 
 import (
@@ -7,13 +11,13 @@ import (
 	"strings"
 	"testing"
 
-	"smartpress/internal/cache"
-	"smartpress/internal/models"
+	"yaaicms/internal/cache"
+	"yaaicms/internal/models"
 )
 
 // TestHomepageDefault verifies that when no published content exists and no
 // templates can render, the homepage handler returns 200 with the default
-// SmartPress fallback HTML.
+// YaaiCMS fallback HTML.
 func TestHomepageDefault(t *testing.T) {
 	env := newTestEnv(t)
 
@@ -45,8 +49,8 @@ func TestHomepageDefault(t *testing.T) {
 	}
 
 	body := rec.Body.String()
-	if !strings.Contains(body, "SmartPress") {
-		t.Error("response body should contain 'SmartPress'")
+	if !strings.Contains(body, "YaaiCMS") {
+		t.Error("response body should contain 'YaaiCMS'")
 	}
 	if !strings.Contains(body, "Your site is running") {
 		t.Error("response body should contain default setup message")
@@ -101,8 +105,8 @@ func TestHomepageFallback(t *testing.T) {
 	body := rec.Body.String()
 	// Without an active page template, the engine.RenderPage call will fail
 	// and the handler falls through to the static default.
-	if !strings.Contains(body, "SmartPress") {
-		t.Error("response body should contain 'SmartPress' fallback text")
+	if !strings.Contains(body, "YaaiCMS") {
+		t.Error("response body should contain 'YaaiCMS' fallback text")
 	}
 }
 

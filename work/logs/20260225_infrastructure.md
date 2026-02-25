@@ -30,7 +30,7 @@
 Three stages:
 1. **Frontend (node:22-alpine):** Installs tailwindcss, compiles admin CSS (minified, tree-shaken), downloads vendored HTMX 2.0.4 and AlpineJS 3.14.8
 2. **Builder (golang:1.25-alpine):** Downloads Go modules, overlays compiled static assets, builds fully static binary with `CGO_ENABLED=0 -ldflags="-s -w"`
-3. **Runtime (alpine:3.21):** Minimal image with ca-certificates and tzdata, runs as non-root `smartpress` user
+3. **Runtime (alpine:3.21):** Minimal image with ca-certificates and tzdata, runs as non-root `yaaicms` user
 
 ### Kubernetes Manifests (Kustomize Overlays)
 
@@ -41,8 +41,8 @@ Three stages:
 - `kustomization.yaml` — Standard labels with `includeSelectors`
 
 **Testing overlay (`deploy/overlays/testing/`):**
-- Namespace: `smartpress-testing`
-- Ingress: `smartpress.test.vlah.sh` with cert-manager TLS
+- Namespace: `yaaicms-testing`
+- Ingress: `yaaicms.test.vlah.sh` with cert-manager TLS
 - Deployment patch: `APP_ENV=testing`, remote DB at 10.0.0.6:5432, Valkey at 10.0.0.6:6379 (DB 101), bumped resource limits (1 CPU, 512Mi)
 - Secrets: Generated from `.secrets` via `kubectl create secret generic --from-env-file`
 
@@ -73,7 +73,7 @@ Three stages:
 - `internal/render/templates/admin/2fa_setup.html` — Conditional CDN/local asset loading
 - `internal/render/templates/admin/2fa_verify.html` — Conditional CDN/local asset loading
 - `internal/router/router.go` — Added static file serving from embedded FS
-- `cmd/smartpress/main.go` — Pass `cfg.IsDev()` to renderer
+- `cmd/yaaicms/main.go` — Pass `cfg.IsDev()` to renderer
 - `.gitignore` — Added built assets, tailwind temp, K8s secrets
 
 ## Tests

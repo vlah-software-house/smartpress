@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 package render
 
 import (
@@ -7,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"smartpress/internal/middleware"
-	"smartpress/internal/session"
+	"yaaicms/internal/middleware"
+	"yaaicms/internal/session"
 
 	"github.com/google/uuid"
 )
@@ -17,7 +21,7 @@ import (
 func helperSession() *session.Data {
 	return &session.Data{
 		UserID:      uuid.New(),
-		Email:       "test@smartpress.local",
+		Email:       "test@yaaicms.local",
 		DisplayName: "Test User",
 		Role:        "admin",
 		TwoFADone:   true,
@@ -155,8 +159,8 @@ func TestPageRendering(t *testing.T) {
 	if !strings.Contains(body, "<!DOCTYPE html>") {
 		t.Error("full page render should contain <!DOCTYPE html>")
 	}
-	if !strings.Contains(body, "SmartPress") {
-		t.Error("full page render should contain SmartPress branding")
+	if !strings.Contains(body, "YaaiCMS") {
+		t.Error("full page render should contain YaaiCMS branding")
 	}
 	// Dashboard content should be present.
 	if !strings.Contains(body, "Welcome back") {

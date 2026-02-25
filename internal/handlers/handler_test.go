@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 // handler_test.go provides shared test infrastructure for handler integration
 // tests. Tests are skipped when PostgreSQL or Valkey are unavailable.
 package handlers
@@ -16,14 +20,14 @@ import (
 	"github.com/pressly/goose/v3"
 	"github.com/redis/go-redis/v9"
 
-	"smartpress/internal/ai"
-	"smartpress/internal/cache"
-	"smartpress/internal/database"
-	"smartpress/internal/engine"
-	"smartpress/internal/middleware"
-	"smartpress/internal/render"
-	"smartpress/internal/session"
-	"smartpress/internal/store"
+	"yaaicms/internal/ai"
+	"yaaicms/internal/cache"
+	"yaaicms/internal/database"
+	"yaaicms/internal/engine"
+	"yaaicms/internal/middleware"
+	"yaaicms/internal/render"
+	"yaaicms/internal/session"
+	"yaaicms/internal/store"
 )
 
 // mockAIProvider implements ai.Provider for handler tests.
@@ -51,9 +55,9 @@ func testDB(t *testing.T) *sql.DB {
 
 	host := envOr("POSTGRES_HOST", "localhost")
 	port := envOr("POSTGRES_PORT", "5432")
-	user := envOr("POSTGRES_USER", "smartpress")
+	user := envOr("POSTGRES_USER", "yaaicms")
 	pass := envOr("POSTGRES_PASSWORD", "changeme")
-	name := envOr("POSTGRES_DB", "smartpress")
+	name := envOr("POSTGRES_DB", "yaaicms")
 	dsn := "postgres://" + user + ":" + pass + "@" + host + ":" + port + "/" + name + "?sslmode=disable"
 
 	db, err := sql.Open("pgx", dsn)

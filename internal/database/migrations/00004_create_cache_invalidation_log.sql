@@ -1,3 +1,7 @@
+-- Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+-- Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+-- All rights reserved. See LICENSE for details.
+
 -- +goose Up
 CREATE TABLE cache_invalidation_log (
     id              BIGSERIAL   PRIMARY KEY,

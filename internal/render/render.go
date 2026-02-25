@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 // Package render provides HTML template rendering for the admin interface.
 // It supports full-page and HTMX partial rendering, automatically detecting
 // the request type via the HX-Request header.
@@ -11,8 +15,8 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"smartpress/internal/middleware"
-	"smartpress/internal/session"
+	"yaaicms/internal/middleware"
+	"yaaicms/internal/session"
 )
 
 //go:embed templates/admin/*.html

@@ -1,18 +1,21 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
 import { test as setup, expect } from '@playwright/test';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import { execFileSync } from 'child_process';
 
-const ADMIN_EMAIL = 'admin@smartpress.local';
+const ADMIN_EMAIL = 'admin@yaaicms.local';
 const ADMIN_PASSWORD = 'admin';
 const AUTH_FILE = 'e2e/.auth/admin.json';
 
 // Database connection for reading the TOTP secret.
 const DB_HOST = process.env.DB_HOST || 'localhost';
 const DB_PORT = process.env.DB_PORT || '5432';
-const DB_USER = process.env.DB_USER || 'smartpress';
+const DB_USER = process.env.DB_USER || 'yaaicms';
 const DB_PASS = process.env.DB_PASSWORD || 'changeme';
-const DB_NAME = process.env.DB_NAME || 'smartpress';
+const DB_NAME = process.env.DB_NAME || 'yaaicms';
 
 /**
  * Read the admin user's TOTP secret from the database.

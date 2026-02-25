@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 // Package session provides Valkey-backed HTTP session management.
 // Sessions are identified by a secure cookie and stored as JSON in Valkey
 // with automatic TTL expiry.

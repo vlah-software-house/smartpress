@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 package middleware
 
 import (
@@ -6,7 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"smartpress/internal/session"
+	"yaaicms/internal/session"
 
 	"github.com/google/uuid"
 )
@@ -16,7 +20,7 @@ import (
 func newTestSession(role string, twoFADone bool) *session.Data {
 	return &session.Data{
 		UserID:      uuid.New(),
-		Email:       "test@smartpress.local",
+		Email:       "test@yaaicms.local",
 		DisplayName: "Test User",
 		Role:        role,
 		TwoFADone:   twoFADone,

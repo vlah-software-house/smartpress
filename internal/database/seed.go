@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 package database
 
 import (
@@ -44,13 +48,13 @@ func seedAdminUser(db *sql.DB) error {
 	_, err = db.Exec(`
 		INSERT INTO users (email, password_hash, display_name, role, totp_enabled)
 		VALUES ($1, $2, $3, $4, $5)
-	`, "admin@smartpress.local", string(hash), "Admin", "admin", false)
+	`, "admin@yaaicms.local", string(hash), "Admin", "admin", false)
 	if err != nil {
 		return fmt.Errorf("seed insert admin: %w", err)
 	}
 
 	slog.Info("database seeded with default admin user",
-		"email", "admin@smartpress.local",
+		"email", "admin@yaaicms.local",
 		"password", "admin",
 	)
 	return nil
@@ -75,7 +79,7 @@ func seedTemplates(db *sql.DB) error {
 			tmplType: "header",
 			html: `<header class="bg-white border-b border-gray-200">
   <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-    <a href="/" class="text-xl font-bold text-indigo-600">SmartPress</a>
+    <a href="/" class="text-xl font-bold text-indigo-600">YaaiCMS</a>
     <nav class="space-x-4 text-sm text-gray-600">
       <a href="/" class="hover:text-gray-900">Home</a>
     </nav>
@@ -87,7 +91,7 @@ func seedTemplates(db *sql.DB) error {
 			tmplType: "footer",
 			html: `<footer class="bg-gray-50 border-t border-gray-200 mt-12">
   <div class="max-w-5xl mx-auto px-4 py-6 text-center text-sm text-gray-500">
-    &copy; {{ .Year }} SmartPress. All rights reserved.
+    &copy; {{ .Year }} YaaiCMS. All rights reserved.
   </div>
 </footer>`,
 		},
@@ -182,9 +186,9 @@ func seedContent(db *sql.DB) error {
 	}{
 		{
 			contentType: "page",
-			title:       "Welcome to SmartPress",
+			title:       "Welcome to YaaiCMS",
 			slug:        "home",
-			body:        `<p>This is your new SmartPress site. Edit this page from the <a href="/admin">admin panel</a>, or create AI-powered templates to customize the look and feel.</p>`,
+			body:        `<p>This is your new YaaiCMS site. Edit this page from the <a href="/admin">admin panel</a>, or create AI-powered templates to customize the look and feel.</p>`,
 			status:      "published",
 			published:   true,
 		},
@@ -193,7 +197,7 @@ func seedContent(db *sql.DB) error {
 			title:       "Hello World",
 			slug:        "hello-world",
 			body:        `<p>This is a sample blog post created during setup. You can edit or delete it from the admin panel.</p>`,
-			excerpt:     "A sample blog post to get you started with SmartPress.",
+			excerpt:     "A sample blog post to get you started with YaaiCMS.",
 			status:      "published",
 			published:   true,
 		},

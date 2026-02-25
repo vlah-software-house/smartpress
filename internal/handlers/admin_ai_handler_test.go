@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 package handlers
 
 import (
@@ -9,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"smartpress/internal/models"
+	"yaaicms/internal/models"
 )
 
 // setMockAIResponse reconfigures the test env's AI mock to return a given response.

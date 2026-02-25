@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 package handlers
 
 import (
@@ -8,9 +12,9 @@ import (
 	"net/http"
 	"strings"
 
-	"smartpress/internal/engine"
-	"smartpress/internal/models"
-	"smartpress/internal/render"
+	"yaaicms/internal/engine"
+	"yaaicms/internal/models"
+	"yaaicms/internal/render"
 )
 
 // --- AI Assistant Endpoints ---
@@ -537,7 +541,7 @@ func (a *Admin) AITemplateSave(w http.ResponseWriter, r *http.Request) {
 // variables for the given template type.
 func buildTemplateSystemPrompt(tmplType string) string {
 	base := `You are an expert web designer who creates beautiful, modern HTML templates using TailwindCSS.
-You generate complete, production-ready HTML+TailwindCSS templates for a CMS called SmartPress.
+You generate complete, production-ready HTML+TailwindCSS templates for a CMS called YaaiCMS.
 
 CRITICAL RULES:
 1. Output ONLY the HTML template code. No explanations, no markdown code fences, no comments outside the HTML.
@@ -554,7 +558,7 @@ CRITICAL RULES:
 	case "header":
 		vars = `
 Available variables for HEADER templates:
-- {{.SiteName}} — The site name (e.g., "SmartPress")
+- {{.SiteName}} — The site name (e.g., "YaaiCMS")
 - {{.Year}} — Current year (e.g., 2026)
 
 Header templates typically contain: site logo/name, navigation links, maybe a search bar.
@@ -619,28 +623,28 @@ func buildPreviewData(tmplType string) any {
 	switch tmplType {
 	case "page":
 		return engine.PageData{
-			SiteName:        "SmartPress",
+			SiteName:        "YaaiCMS",
 			Title:           "Preview Page Title",
 			Body:            "<p>This is preview content. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p><p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.</p>",
 			Excerpt:         "A brief preview excerpt for the page.",
 			MetaDescription: "Preview meta description for search engines",
 			Slug:            "preview-page",
 			PublishedAt:     "February 25, 2026",
-			Header:          "<header class='bg-gray-800 text-white p-4'><nav class='max-w-6xl mx-auto flex justify-between items-center'><span class='text-xl font-bold'>SmartPress</span><div class='space-x-4'><a href='/' class='hover:text-gray-300'>Home</a><a href='/blog' class='hover:text-gray-300'>Blog</a></div></nav></header>",
-			Footer:          "<footer class='bg-gray-800 text-gray-400 p-6 text-center text-sm'>&copy; 2026 SmartPress. All rights reserved.</footer>",
+			Header:          "<header class='bg-gray-800 text-white p-4'><nav class='max-w-6xl mx-auto flex justify-between items-center'><span class='text-xl font-bold'>YaaiCMS</span><div class='space-x-4'><a href='/' class='hover:text-gray-300'>Home</a><a href='/blog' class='hover:text-gray-300'>Blog</a></div></nav></header>",
+			Footer:          "<footer class='bg-gray-800 text-gray-400 p-6 text-center text-sm'>&copy; 2026 YaaiCMS. All rights reserved.</footer>",
 			Year:            2026,
 		}
 	case "article_loop":
 		return engine.ListData{
-			SiteName: "SmartPress",
+			SiteName: "YaaiCMS",
 			Title:    "Blog",
 			Posts: []engine.PostItem{
-				{Title: "Getting Started with SmartPress", Slug: "getting-started", Excerpt: "Learn how to set up your SmartPress CMS and create your first blog post.", PublishedAt: "February 25, 2026"},
+				{Title: "Getting Started with YaaiCMS", Slug: "getting-started", Excerpt: "Learn how to set up your YaaiCMS CMS and create your first blog post.", PublishedAt: "February 25, 2026"},
 				{Title: "Building Modern Websites", Slug: "modern-websites", Excerpt: "Discover the latest techniques for building fast, responsive websites.", PublishedAt: "February 24, 2026"},
 				{Title: "AI-Powered Content Creation", Slug: "ai-content", Excerpt: "How artificial intelligence is transforming the way we create web content.", PublishedAt: "February 23, 2026"},
 			},
-			Header: "<header class='bg-gray-800 text-white p-4'><nav class='max-w-6xl mx-auto flex justify-between items-center'><span class='text-xl font-bold'>SmartPress</span><div class='space-x-4'><a href='/' class='hover:text-gray-300'>Home</a><a href='/blog' class='hover:text-gray-300'>Blog</a></div></nav></header>",
-			Footer: "<footer class='bg-gray-800 text-gray-400 p-6 text-center text-sm'>&copy; 2026 SmartPress. All rights reserved.</footer>",
+			Header: "<header class='bg-gray-800 text-white p-4'><nav class='max-w-6xl mx-auto flex justify-between items-center'><span class='text-xl font-bold'>YaaiCMS</span><div class='space-x-4'><a href='/' class='hover:text-gray-300'>Home</a><a href='/blog' class='hover:text-gray-300'>Blog</a></div></nav></header>",
+			Footer: "<footer class='bg-gray-800 text-gray-400 p-6 text-center text-sm'>&copy; 2026 YaaiCMS. All rights reserved.</footer>",
 			Year:   2026,
 		}
 	default:
@@ -648,7 +652,7 @@ func buildPreviewData(tmplType string) any {
 		return struct {
 			SiteName string
 			Year     int
-		}{SiteName: "SmartPress", Year: 2026}
+		}{SiteName: "YaaiCMS", Year: 2026}
 	}
 }
 

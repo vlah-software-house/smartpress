@@ -1,5 +1,9 @@
+# Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+# Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+# All rights reserved. See LICENSE for details.
+
 # =============================================================================
-# SmartPress — Production Multi-Stage Dockerfile
+# YaaiCMS — Production Multi-Stage Dockerfile
 # =============================================================================
 # Stage 1: Build TailwindCSS + vendor frontend JS
 # Stage 2: Compile Go binary (with embedded assets)
@@ -55,8 +59,8 @@ COPY --from=frontend /build/web/static/ ./web/static/
 # Build a fully static binary with stripped debug symbols.
 RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-s -w" \
-    -o /smartpress \
-    ./cmd/smartpress
+    -o /yaaicms \
+    ./cmd/yaaicms
 
 # ---------------------------------------------------------------------------
 # Stage 3: Runtime
@@ -65,12 +69,12 @@ FROM alpine:3.21
 
 # Install CA certificates for HTTPS calls to AI providers and S3.
 RUN apk add --no-cache ca-certificates tzdata \
-    && adduser -D -H -s /sbin/nologin smartpress
+    && adduser -D -H -s /sbin/nologin yaaicms
 
-COPY --from=builder /smartpress /usr/local/bin/smartpress
+COPY --from=builder /yaaicms /usr/local/bin/yaaicms
 
-USER smartpress
+USER yaaicms
 
 EXPOSE 8080
 
-ENTRYPOINT ["smartpress"]
+ENTRYPOINT ["yaaicms"]

@@ -5,7 +5,7 @@
 
 ## Summary
 
-Added comprehensive test coverage across all SmartPress packages, bringing total coverage from near-zero to 70.0% of statements. Tests cover unit, integration, and functional layers.
+Added comprehensive test coverage across all YaaiCMS packages, bringing total coverage from near-zero to 70.0% of statements. Tests cover unit, integration, and functional layers.
 
 ## Test Files Created/Modified
 

@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 // Package database tests cover PostgreSQL connection and migration execution.
 // These are integration tests that require a running PostgreSQL instance.
 package database
@@ -17,9 +21,9 @@ func envOr(key, fallback string) string {
 func testDSN() string {
 	host := envOr("POSTGRES_HOST", "localhost")
 	port := envOr("POSTGRES_PORT", "5432")
-	user := envOr("POSTGRES_USER", "smartpress")
+	user := envOr("POSTGRES_USER", "yaaicms")
 	pass := envOr("POSTGRES_PASSWORD", "changeme")
-	name := envOr("POSTGRES_DB", "smartpress")
+	name := envOr("POSTGRES_DB", "yaaicms")
 	return "postgres://" + user + ":" + pass + "@" + host + ":" + port + "/" + name + "?sslmode=disable"
 }
 

@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 package config
 
 import (
@@ -50,9 +54,9 @@ func TestLoad_Defaults(t *testing.T) {
 		"Env":            "development",
 		"DBHost":         "localhost",
 		"DBPort":         "5432",
-		"DBUser":         "smartpress",
+		"DBUser":         "yaaicms",
 		"DBPassword":     "changeme",
-		"DBName":         "smartpress",
+		"DBName":         "yaaicms",
 		"ValkeyHost":     "localhost",
 		"ValkeyPort":     "6379",
 		"ValkeyPassword": "",
@@ -66,8 +70,8 @@ func TestLoad_Defaults(t *testing.T) {
 		"MistralModel":   "mistral-large-latest",
 		"MistralBaseURL": "https://api.mistral.ai",
 		"S3Region":       "fsn1",
-		"S3BucketPublic": "smartpress-public",
-		"S3BucketPrivate":"smartpress-private",
+		"S3BucketPublic": "yaaicms-public",
+		"S3BucketPrivate":"yaaicms-private",
 	}
 
 	// Use a helper to avoid massive repetition.
@@ -261,13 +265,13 @@ func TestDSN(t *testing.T) {
 		{
 			name: "default local config",
 			cfg: Config{
-				DBUser:     "smartpress",
+				DBUser:     "yaaicms",
 				DBPassword: "changeme",
 				DBHost:     "localhost",
 				DBPort:     "5432",
-				DBName:     "smartpress",
+				DBName:     "yaaicms",
 			},
-			expected: "postgres://smartpress:changeme@localhost:5432/smartpress?sslmode=disable",
+			expected: "postgres://yaaicms:changeme@localhost:5432/yaaicms?sslmode=disable",
 		},
 		{
 			name: "custom remote config",

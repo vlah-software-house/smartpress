@@ -40,7 +40,7 @@
 - Seeds 4 default templates: header, footer, page, article_loop — all active
 - Seeds 2 sample content items: "home" page and "hello-world" post
 
-### Wiring (`cmd/smartpress/main.go`)
+### Wiring (`cmd/yaaicms/main.go`)
 - Added `templateStore`, `engine`, and `publicHandlers` initialization
 - Updated `NewAdmin` and `router.New` calls with new dependencies
 

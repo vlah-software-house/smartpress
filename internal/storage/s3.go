@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 // Package storage provides an S3-compatible object storage client for
 // uploading, deleting, and serving media files. It wraps the AWS SDK v2
 // and is configured for path-style access (required by CEPH/Hetzner).

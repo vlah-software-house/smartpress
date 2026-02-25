@@ -1,4 +1,8 @@
-// Package main is the entry point for the SmartPress CMS server.
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
+// Package main is the entry point for the YaaiCMS CMS server.
 // It loads configuration, connects to services, sets up routing, and starts
 // the HTTP server with graceful shutdown support.
 package main
@@ -12,17 +16,17 @@ import (
 	"syscall"
 	"time"
 
-	"smartpress/internal/ai"
-	"smartpress/internal/cache"
-	"smartpress/internal/config"
-	"smartpress/internal/database"
-	"smartpress/internal/engine"
-	"smartpress/internal/handlers"
-	"smartpress/internal/render"
-	"smartpress/internal/router"
-	"smartpress/internal/session"
-	"smartpress/internal/storage"
-	"smartpress/internal/store"
+	"yaaicms/internal/ai"
+	"yaaicms/internal/cache"
+	"yaaicms/internal/config"
+	"yaaicms/internal/database"
+	"yaaicms/internal/engine"
+	"yaaicms/internal/handlers"
+	"yaaicms/internal/render"
+	"yaaicms/internal/router"
+	"yaaicms/internal/session"
+	"yaaicms/internal/storage"
+	"yaaicms/internal/store"
 )
 
 func main() {

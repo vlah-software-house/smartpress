@@ -47,7 +47,7 @@
 6. Redirect to /admin/dashboard
 
 ## Verification
-- Login with admin@smartpress.local / admin → redirects to 2FA setup
+- Login with admin@yaaicms.local / admin → redirects to 2FA setup
 - 2FA setup shows real QR code PNG and manual secret
 - CSRF protection working (token from cookie validates on POST)
 - Dashboard shows real counts from database

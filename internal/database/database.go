@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 // Package database handles PostgreSQL connection management and migration
 // execution using goose. It provides a Connect function that returns a
 // ready-to-use *sql.DB pool and a Migrate function for schema management.

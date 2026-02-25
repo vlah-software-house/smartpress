@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 package handlers
 
 import (
@@ -9,10 +13,10 @@ import (
 	"github.com/pquerna/otp/totp"
 	qrcode "github.com/skip2/go-qrcode"
 
-	"smartpress/internal/middleware"
-	"smartpress/internal/render"
-	"smartpress/internal/session"
-	"smartpress/internal/store"
+	"yaaicms/internal/middleware"
+	"yaaicms/internal/render"
+	"yaaicms/internal/session"
+	"yaaicms/internal/store"
 )
 
 // Auth groups all authentication-related HTTP handlers.
@@ -120,7 +124,7 @@ func (a *Auth) TwoFASetupPage(w http.ResponseWriter, r *http.Request) {
 	} else if user.TOTPSecret == nil {
 		// Generate a new TOTP key for first-time setup.
 		key, err := totp.Generate(totp.GenerateOpts{
-			Issuer:      "SmartPress",
+			Issuer:      "YaaiCMS",
 			AccountName: sess.Email,
 		})
 		if err != nil {
@@ -143,7 +147,7 @@ func (a *Auth) TwoFASetupPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate QR code as base64-encoded PNG.
-	otpURL := fmt.Sprintf("otpauth://totp/SmartPress:%s?secret=%s&issuer=SmartPress", sess.Email, secret)
+	otpURL := fmt.Sprintf("otpauth://totp/YaaiCMS:%s?secret=%s&issuer=YaaiCMS", sess.Email, secret)
 	qrPNG, err := qrcode.Encode(otpURL, qrcode.Medium, 256)
 	if err != nil {
 		slog.Error("qr code generation failed", "error", err)
@@ -207,7 +211,7 @@ func (a *Auth) TwoFAVerifySubmit(w http.ResponseWriter, r *http.Request) {
 
 			// Re-generate QR code for the setup page.
 			qrPNG, _ := qrcode.Encode(
-				fmt.Sprintf("otpauth://totp/SmartPress:%s?secret=%s&issuer=SmartPress", user.Email, *user.TOTPSecret),
+				fmt.Sprintf("otpauth://totp/YaaiCMS:%s?secret=%s&issuer=YaaiCMS", user.Email, *user.TOTPSecret),
 				qrcode.Medium, 256,
 			)
 			qrBase64 := base64.StdEncoding.EncodeToString(qrPNG)

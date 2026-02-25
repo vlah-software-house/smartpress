@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+# Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+# All rights reserved. See LICENSE for details.
 # build-public-css.sh — Compile TailwindCSS from database-stored templates.
 #
-# This script extracts all template HTML from the SmartPress database,
+# This script extracts all template HTML from the YaaiCMS database,
 # writes it to a temporary directory (.tailwind-content/), and runs
 # the Tailwind CLI to produce a minified CSS file containing only the
 # classes actually used in public-facing templates.
@@ -12,9 +15,9 @@
 # Environment variables (reads from .env/.secrets if present):
 #   POSTGRES_HOST     (default: localhost)
 #   POSTGRES_PORT     (default: 5432)
-#   POSTGRES_USER     (default: smartpress)
+#   POSTGRES_USER     (default: yaaicms)
 #   POSTGRES_PASSWORD (default: changeme)
-#   POSTGRES_DB       (default: smartpress)
+#   POSTGRES_DB       (default: yaaicms)
 #
 # Output: web/static/css/public.css
 #
@@ -35,8 +38,8 @@ done
 
 DB_HOST="${POSTGRES_HOST:-localhost}"
 DB_PORT="${POSTGRES_PORT:-5432}"
-DB_USER="${POSTGRES_USER:-smartpress}"
-DB_NAME="${POSTGRES_DB:-smartpress}"
+DB_USER="${POSTGRES_USER:-yaaicms}"
+DB_NAME="${POSTGRES_DB:-yaaicms}"
 export PGPASSWORD="${POSTGRES_PASSWORD:-changeme}"
 
 CONTENT_DIR="$PROJECT_DIR/.tailwind-content"

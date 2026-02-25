@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 package engine
 
 import (
@@ -13,9 +17,9 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 
-	"smartpress/internal/database"
-	"smartpress/internal/models"
-	"smartpress/internal/store"
+	"yaaicms/internal/database"
+	"yaaicms/internal/models"
+	"yaaicms/internal/store"
 )
 
 // --------------------------------------------------------------------------
@@ -611,9 +615,9 @@ func envOr(key, fallback string) string {
 func testDSN() string {
 	host := envOr("POSTGRES_HOST", "localhost")
 	port := envOr("POSTGRES_PORT", "5432")
-	user := envOr("POSTGRES_USER", "smartpress")
+	user := envOr("POSTGRES_USER", "yaaicms")
 	pass := envOr("POSTGRES_PASSWORD", "changeme")
-	name := envOr("POSTGRES_DB", "smartpress")
+	name := envOr("POSTGRES_DB", "yaaicms")
 	return "postgres://" + user + ":" + pass + "@" + host + ":" + port + "/" + name + "?sslmode=disable"
 }
 
@@ -1167,7 +1171,7 @@ func TestRenderPageHeaderFooterFragments(t *testing.T) {
 	createAndActivateTemplate(t, ts, headerName, models.TemplateTypeHeader,
 		`<header class="main-header"><nav><a href="/">Home</a><a href="/blog">Blog</a></nav></header>`)
 	createAndActivateTemplate(t, ts, footerName, models.TemplateTypeFooter,
-		`<footer class="main-footer"><p>Copyright SmartPress</p></footer>`)
+		`<footer class="main-footer"><p>Copyright YaaiCMS</p></footer>`)
 	createAndActivateTemplate(t, ts, pageName, models.TemplateTypePage,
 		`<html>{{.Header}}<main><h1>{{.Title}}</h1>{{.Body}}</main><p>{{.Year}}</p>{{.Footer}}</html>`)
 
@@ -1206,7 +1210,7 @@ func TestRenderPageHeaderFooterFragments(t *testing.T) {
 	if !strings.Contains(body, `class="main-footer"`) {
 		t.Errorf("expected footer class in output, got:\n%s", body)
 	}
-	if !strings.Contains(body, "Copyright SmartPress") {
+	if !strings.Contains(body, "Copyright YaaiCMS") {
 		t.Errorf("expected copyright text in footer output, got:\n%s", body)
 	}
 

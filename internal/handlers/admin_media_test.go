@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 package handlers
 
 import (
@@ -8,7 +12,7 @@ import (
 	"image/png"
 	"testing"
 
-	"smartpress/internal/models"
+	"yaaicms/internal/models"
 )
 
 func TestGenerateThumbnail(t *testing.T) {

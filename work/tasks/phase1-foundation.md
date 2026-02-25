@@ -6,7 +6,7 @@
 - [x] Docker Compose for PostgreSQL + Valkey
 - [x] Create `.secrets.example` template and `.gitignore`
 - [x] Set up `work/tasks/` and `work/logs/` directories
-- [x] Create entry point (`cmd/smartpress/main.go`) with graceful shutdown
+- [x] Create entry point (`cmd/yaaicms/main.go`) with graceful shutdown
 - [x] Create config loader (`internal/config/config.go`)
 
 ## Step 2: Database Schema & Migrations

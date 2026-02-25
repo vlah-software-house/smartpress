@@ -1,4 +1,8 @@
-// Package store provides database access methods for all SmartPress
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
+// Package store provides database access methods for all YaaiCMS
 // entities. Each store struct wraps a *sql.DB and exposes typed query methods.
 package store
 
@@ -9,7 +13,7 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
-	"smartpress/internal/models"
+	"yaaicms/internal/models"
 )
 
 // UserStore handles all user-related database operations.

@@ -75,7 +75,7 @@
 ### Configuration (`config.go`)
 - 7 new fields: S3Endpoint, S3Region, S3AccessKey, S3SecretKey, S3BucketPublic, S3BucketPrivate, S3PublicURL
 - Region defaults to `fsn1` (Hetzner Frankfurt)
-- Bucket names default to `smartpress-public` and `smartpress-private`
+- Bucket names default to `yaaicms-public` and `yaaicms-private`
 
 ### Wiring (`main.go`)
 - Conditional S3 connection (skips with warning if not configured)

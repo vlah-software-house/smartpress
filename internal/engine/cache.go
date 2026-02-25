@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 // cache.go provides an in-memory cache for compiled Go templates.
 // This is the L1 cache — it avoids re-parsing template strings on every
 // request. Templates are keyed by their database ID and version, so an

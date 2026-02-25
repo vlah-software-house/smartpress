@@ -1,5 +1,9 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 // Package router sets up all HTTP routes and middleware chains for the
-// SmartPress CMS. It organizes routes into public and admin groups with
+// YaaiCMS CMS. It organizes routes into public and admin groups with
 // appropriate middleware stacks.
 package router
 
@@ -10,10 +14,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"smartpress/internal/handlers"
-	"smartpress/internal/middleware"
-	"smartpress/internal/session"
-	"smartpress/web"
+	"yaaicms/internal/handlers"
+	"yaaicms/internal/middleware"
+	"yaaicms/internal/session"
+	"yaaicms/web"
 )
 
 // New creates and returns the configured Chi router with all middleware

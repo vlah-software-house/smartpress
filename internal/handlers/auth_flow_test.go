@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 // auth_flow_test.go contains handler integration tests for the Auth handler
 // methods: LoginPage, LoginSubmit, TwoFASetupPage, TwoFAVerifyPage,
 // TwoFAVerifySubmit, and Logout. Tests exercise real database and Valkey
@@ -14,7 +18,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"smartpress/internal/session"
+	"yaaicms/internal/session"
 )
 
 // --------------------------------------------------------------------------
@@ -46,7 +50,7 @@ func TestLoginPage_ReturnsHTML(t *testing.T) {
 func TestLoginPage_AuthenticatedRedirectsToDashboard(t *testing.T) {
 	env := newTestEnv(t)
 
-	sess := testSession(uuid.New(), "admin@smartpress.local", "admin", true)
+	sess := testSession(uuid.New(), "admin@yaaicms.local", "admin", true)
 	req := httptest.NewRequest(http.MethodGet, "/admin/login", nil)
 	req = req.WithContext(ctxWithSession(req.Context(), sess))
 	rec := httptest.NewRecorder()
@@ -68,7 +72,7 @@ func TestLoginPage_AuthenticatedRedirectsToDashboard(t *testing.T) {
 func TestLoginPage_PartialSessionDoesNotRedirect(t *testing.T) {
 	env := newTestEnv(t)
 
-	sess := testSession(uuid.New(), "admin@smartpress.local", "admin", false)
+	sess := testSession(uuid.New(), "admin@yaaicms.local", "admin", false)
 	req := httptest.NewRequest(http.MethodGet, "/admin/login", nil)
 	req = req.WithContext(ctxWithSession(req.Context(), sess))
 	rec := httptest.NewRecorder()
@@ -86,14 +90,14 @@ func TestLoginPage_PartialSessionDoesNotRedirect(t *testing.T) {
 
 // TestLoginSubmit_ValidCredentials verifies that valid email/password
 // combination results in a 303 redirect to either the 2FA setup or verify
-// page. The default seeded admin user (admin@smartpress.local / admin) has
+// page. The default seeded admin user (admin@yaaicms.local / admin) has
 // no TOTP configured initially, so the redirect target is /admin/2fa/setup.
 func TestLoginSubmit_ValidCredentials(t *testing.T) {
 	env := newTestEnv(t)
 
 	// Ensure the default admin user exists and has TOTP reset so we get a
 	// predictable redirect to the 2FA setup page.
-	user, err := env.UserStore.FindByEmail("admin@smartpress.local")
+	user, err := env.UserStore.FindByEmail("admin@yaaicms.local")
 	if err != nil || user == nil {
 		t.Skip("skipping: default admin user not found in database — run seed first")
 	}
@@ -104,7 +108,7 @@ func TestLoginSubmit_ValidCredentials(t *testing.T) {
 	}
 
 	form := url.Values{}
-	form.Set("email", "admin@smartpress.local")
+	form.Set("email", "admin@yaaicms.local")
 	form.Set("password", "admin")
 
 	req := httptest.NewRequest(http.MethodPost, "/admin/login", strings.NewReader(form.Encode()))
@@ -142,7 +146,7 @@ func TestLoginSubmit_ValidCredentials(t *testing.T) {
 func TestLoginSubmit_ValidCredentials_TOTPEnabled(t *testing.T) {
 	env := newTestEnv(t)
 
-	user, err := env.UserStore.FindByEmail("admin@smartpress.local")
+	user, err := env.UserStore.FindByEmail("admin@yaaicms.local")
 	if err != nil || user == nil {
 		t.Skip("skipping: default admin user not found in database — run seed first")
 	}
@@ -160,7 +164,7 @@ func TestLoginSubmit_ValidCredentials_TOTPEnabled(t *testing.T) {
 	})
 
 	form := url.Values{}
-	form.Set("email", "admin@smartpress.local")
+	form.Set("email", "admin@yaaicms.local")
 	form.Set("password", "admin")
 
 	req := httptest.NewRequest(http.MethodPost, "/admin/login", strings.NewReader(form.Encode()))
@@ -184,13 +188,13 @@ func TestLoginSubmit_ValidCredentials_TOTPEnabled(t *testing.T) {
 func TestLoginSubmit_InvalidPassword(t *testing.T) {
 	env := newTestEnv(t)
 
-	user, err := env.UserStore.FindByEmail("admin@smartpress.local")
+	user, err := env.UserStore.FindByEmail("admin@yaaicms.local")
 	if err != nil || user == nil {
 		t.Skip("skipping: default admin user not found in database — run seed first")
 	}
 
 	form := url.Values{}
-	form.Set("email", "admin@smartpress.local")
+	form.Set("email", "admin@yaaicms.local")
 	form.Set("password", "wrong-password-definitely-not-correct")
 
 	req := httptest.NewRequest(http.MethodPost, "/admin/login", strings.NewReader(form.Encode()))
@@ -262,7 +266,7 @@ func TestTwoFASetupPage_WithSession(t *testing.T) {
 	env := newTestEnv(t)
 
 	// Find the admin user to get a real user ID.
-	user, err := env.UserStore.FindByEmail("admin@smartpress.local")
+	user, err := env.UserStore.FindByEmail("admin@yaaicms.local")
 	if err != nil || user == nil {
 		t.Skip("skipping: default admin user not found in database — run seed first")
 	}
@@ -295,7 +299,7 @@ func TestTwoFASetupPage_WithSession(t *testing.T) {
 func TestTwoFASetupPage_AlreadyEnabled(t *testing.T) {
 	env := newTestEnv(t)
 
-	user, err := env.UserStore.FindByEmail("admin@smartpress.local")
+	user, err := env.UserStore.FindByEmail("admin@yaaicms.local")
 	if err != nil || user == nil {
 		t.Skip("skipping: default admin user not found in database — run seed first")
 	}
@@ -355,7 +359,7 @@ func TestTwoFAVerifyPage_NoSession(t *testing.T) {
 func TestTwoFAVerifyPage_WithSession(t *testing.T) {
 	env := newTestEnv(t)
 
-	sess := testSession(uuid.New(), "admin@smartpress.local", "admin", false)
+	sess := testSession(uuid.New(), "admin@yaaicms.local", "admin", false)
 	req := httptest.NewRequest(http.MethodGet, "/admin/2fa/verify", nil)
 	req = req.WithContext(ctxWithSession(req.Context(), sess))
 	rec := httptest.NewRecorder()
@@ -403,7 +407,7 @@ func TestTwoFAVerifySubmit_NoSession(t *testing.T) {
 func TestTwoFAVerifySubmit_InvalidCode(t *testing.T) {
 	env := newTestEnv(t)
 
-	user, err := env.UserStore.FindByEmail("admin@smartpress.local")
+	user, err := env.UserStore.FindByEmail("admin@yaaicms.local")
 	if err != nil || user == nil {
 		t.Skip("skipping: default admin user not found in database — run seed first")
 	}
@@ -445,7 +449,7 @@ func TestTwoFAVerifySubmit_InvalidCode(t *testing.T) {
 func TestTwoFAVerifySubmit_NoTOTPSecret(t *testing.T) {
 	env := newTestEnv(t)
 
-	user, err := env.UserStore.FindByEmail("admin@smartpress.local")
+	user, err := env.UserStore.FindByEmail("admin@yaaicms.local")
 	if err != nil || user == nil {
 		t.Skip("skipping: default admin user not found in database — run seed first")
 	}
@@ -486,7 +490,7 @@ func TestLogout_RedirectsToLogin(t *testing.T) {
 	env := newTestEnv(t)
 
 	// First create a real session so there is something to destroy.
-	user, err := env.UserStore.FindByEmail("admin@smartpress.local")
+	user, err := env.UserStore.FindByEmail("admin@yaaicms.local")
 	if err != nil || user == nil {
 		t.Skip("skipping: default admin user not found in database — run seed first")
 	}

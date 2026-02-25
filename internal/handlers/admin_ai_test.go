@@ -1,10 +1,14 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 package handlers
 
 import (
 	"strings"
 	"testing"
 
-	"smartpress/internal/engine"
+	"yaaicms/internal/engine"
 )
 
 func TestParseNumberedList(t *testing.T) {
@@ -244,7 +248,7 @@ func TestBuildPreviewData(t *testing.T) {
 	// Page preview should return PageData.
 	pageData := buildPreviewData("page")
 	if pd, ok := pageData.(engine.PageData); ok {
-		if pd.SiteName != "SmartPress" {
+		if pd.SiteName != "YaaiCMS" {
 			t.Errorf("page SiteName: got %q", pd.SiteName)
 		}
 		if pd.Title == "" {

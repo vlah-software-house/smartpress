@@ -1,10 +1,14 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 package middleware
 
 import (
 	"context"
 	"net/http"
 
-	"smartpress/internal/session"
+	"yaaicms/internal/session"
 )
 
 // contextKey is an unexported type for context keys to prevent collisions.

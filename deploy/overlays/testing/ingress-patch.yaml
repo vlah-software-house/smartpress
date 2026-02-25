@@ -1,23 +1,27 @@
+# Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+# Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+# All rights reserved. See LICENSE for details.
+
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: smartpress
+  name: yaaicms
   annotations:
     # Let cert-manager provision TLS for the testing domain.
     cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   rules:
-    - host: smartpress.test.vlah.sh
+    - host: yaaicms.test.vlah.sh
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: smartpress
+                name: yaaicms
                 port:
                   name: http
   tls:
     - hosts:
-        - smartpress.test.vlah.sh
-      secretName: smartpress-testing-tls
+        - yaaicms.test.vlah.sh
+      secretName: yaaicms-testing-tls

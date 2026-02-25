@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 // store_test.go provides a shared test database helper for all store
 // integration tests. Tests are skipped if PostgreSQL is not available.
 package store
@@ -10,7 +14,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 
-	"smartpress/internal/database"
+	"yaaicms/internal/database"
 )
 
 // testDSN returns the PostgreSQL connection string for testing.
@@ -18,9 +22,9 @@ import (
 func testDSN() string {
 	host := envOr("POSTGRES_HOST", "localhost")
 	port := envOr("POSTGRES_PORT", "5432")
-	user := envOr("POSTGRES_USER", "smartpress")
+	user := envOr("POSTGRES_USER", "yaaicms")
 	pass := envOr("POSTGRES_PASSWORD", "changeme")
-	name := envOr("POSTGRES_DB", "smartpress")
+	name := envOr("POSTGRES_DB", "yaaicms")
 	return "postgres://" + user + ":" + pass + "@" + host + ":" + port + "/" + name + "?sslmode=disable"
 }
 

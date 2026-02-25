@@ -1,4 +1,8 @@
-// Package handlers contains the HTTP handlers for the SmartPress CMS.
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
+// Package handlers contains the HTTP handlers for the YaaiCMS CMS.
 // Handlers are grouped by concern (admin, public, auth) and receive
 // their dependencies through the handler struct.
 package handlers
@@ -13,16 +17,16 @@ import (
 
 	"github.com/google/uuid"
 
-	"smartpress/internal/ai"
-	"smartpress/internal/cache"
-	"smartpress/internal/engine"
-	"smartpress/internal/middleware"
-	"smartpress/internal/models"
-	"smartpress/internal/render"
-	"smartpress/internal/session"
-	"smartpress/internal/slug"
-	"smartpress/internal/storage"
-	"smartpress/internal/store"
+	"yaaicms/internal/ai"
+	"yaaicms/internal/cache"
+	"yaaicms/internal/engine"
+	"yaaicms/internal/middleware"
+	"yaaicms/internal/models"
+	"yaaicms/internal/render"
+	"yaaicms/internal/session"
+	"yaaicms/internal/slug"
+	"yaaicms/internal/storage"
+	"yaaicms/internal/store"
 )
 
 // AIProviderInfo holds display information about a configured AI provider.
@@ -647,7 +651,7 @@ func (a *Admin) TemplatePreview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := engine.PageData{
-		SiteName:        "SmartPress",
+		SiteName:        "YaaiCMS",
 		Title:           "Preview Page Title",
 		Body:            "<p>This is preview content. Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>",
 		Excerpt:         "A brief preview excerpt.",

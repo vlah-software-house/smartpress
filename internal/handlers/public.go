@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 package handlers
 
 import (
@@ -7,10 +11,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"smartpress/internal/cache"
-	"smartpress/internal/engine"
-	"smartpress/internal/models"
-	"smartpress/internal/store"
+	"yaaicms/internal/cache"
+	"yaaicms/internal/engine"
+	"yaaicms/internal/models"
+	"yaaicms/internal/store"
 )
 
 // Public groups handlers for the public-facing site rendered by the
@@ -77,7 +81,7 @@ func (p *Public) Homepage(w http.ResponseWriter, r *http.Request) {
 	// Default fallback when no templates or content exist yet (not cached).
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write([]byte(`<!DOCTYPE html>
-<html><head><title>SmartPress</title>
+<html><head><title>YaaiCMS</title>
 <script src="https://cdn.tailwindcss.com"></script></head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
 <div class="text-center">

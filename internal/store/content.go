@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 package store
 
 import (
@@ -7,7 +11,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"smartpress/internal/models"
+	"yaaicms/internal/models"
 )
 
 // ContentStore handles all content-related database operations.

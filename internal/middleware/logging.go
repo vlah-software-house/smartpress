@@ -1,4 +1,8 @@
-// Package middleware provides HTTP middleware for the SmartPress server.
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
+// Package middleware provides HTTP middleware for the YaaiCMS server.
 package middleware
 
 import (

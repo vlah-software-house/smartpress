@@ -1,3 +1,7 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
+
 // Package engine provides the dynamic template rendering engine for public
 // pages. It loads AI-generated templates from the database, compiles them
 // as Go html/templates, and renders public pages by injecting content data.
@@ -10,8 +14,8 @@ import (
 	"log/slog"
 	"time"
 
-	"smartpress/internal/models"
-	"smartpress/internal/store"
+	"yaaicms/internal/models"
+	"yaaicms/internal/store"
 )
 
 // PageData holds all variables available to a page template when rendering
@@ -105,7 +109,7 @@ func (e *Engine) RenderPage(content *models.Content) ([]byte, error) {
 	}
 
 	data := PageData{
-		SiteName:        "SmartPress",
+		SiteName:        "YaaiCMS",
 		Title:           content.Title,
 		Body:            template.HTML(content.Body),
 		Slug:            content.Slug,
@@ -164,7 +168,7 @@ func (e *Engine) RenderPostList(posts []models.Content) ([]byte, error) {
 	}
 
 	data := ListData{
-		SiteName: "SmartPress",
+		SiteName: "YaaiCMS",
 		Title:    "Blog",
 		Posts:    postItems,
 		Header:   template.HTML(header),

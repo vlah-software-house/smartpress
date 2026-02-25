@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Madalin Gabriel Ignisca <hi@madalin.me>
+// Copyright (c) 2026 Vlah Software House SRL <contact@vlah.sh>
+// All rights reserved. See LICENSE for details.
 import { test, expect } from '@playwright/test';
 
 test.describe('Settings & Users', () => {
@@ -20,6 +23,6 @@ test.describe('Settings & Users', () => {
 
     // The seeded admin should appear in the main content area.
     const main = page.locator('main');
-    await expect(main.locator('text=admin@smartpress.local')).toBeVisible();
+    await expect(main.locator('text=admin@yaaicms.local')).toBeVisible();
   });
 });

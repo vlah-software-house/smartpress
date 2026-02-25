@@ -98,4 +98,4 @@
 - `internal/ai/provider.go` — mutex for Registry concurrency safety
 - `internal/database/database.go` — connection pool limits
 - `internal/router/router.go` — SecureHeaders, NewCSRF, rate limiting wiring
-- `cmd/smartpress/main.go` — secureCookies flag passed to session store and router
+- `cmd/yaaicms/main.go` — secureCookies flag passed to session store and router

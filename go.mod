@@ -1,4 +1,4 @@
-module smartpress
+module yaaicms
 
 go 1.25.0
 
