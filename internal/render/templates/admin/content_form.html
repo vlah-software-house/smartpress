@@ -504,7 +504,7 @@
             <!-- Rewrite Tone -->
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
                 <h4 class="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Rewrite Content</h4>
-                <p class="text-xs text-gray-500 mb-3">Rewrite your content in a different tone.</p>
+                <p class="text-xs text-gray-500 mb-3">Rewrite your content in a different tone, with optional guidance.</p>
                 <div class="space-y-2">
                     <select id="ai-tone" name="tone"
                             class="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-xs shadow-sm
@@ -515,9 +515,13 @@
                         <option value="persuasive">Persuasive</option>
                         <option value="concise">Concise & Direct</option>
                     </select>
+                    <textarea id="ai-rewrite-suggestion" name="rewrite_suggestion" rows="2"
+                              class="block w-full rounded-md border border-gray-300 px-3 py-1.5 text-xs shadow-sm
+                                     placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                              placeholder="Optional: e.g. Make it shorter, add a call to action, focus more on benefits..."></textarea>
                     <button type="button"
                             hx-post="/admin/ai/rewrite"
-                            hx-include="#body, #title, #ai-tone"
+                            hx-include="#body, #title, #ai-tone, #ai-rewrite-suggestion"
                             hx-target="#ai-rewrite-result"
                             hx-indicator="#ai-rewrite-spinner"
                             class="w-full rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100 transition-colors">

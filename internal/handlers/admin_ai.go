@@ -426,6 +426,7 @@ func (a *Admin) AIRewrite(w http.ResponseWriter, r *http.Request) {
 	body := r.FormValue("body")
 	title := r.FormValue("title")
 	tone := r.FormValue("tone")
+	suggestion := strings.TrimSpace(r.FormValue("rewrite_suggestion"))
 
 	if body == "" {
 		writeAIError(w, "Please write some content first so AI can rewrite it.")
@@ -433,6 +434,10 @@ func (a *Admin) AIRewrite(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !a.checkPromptSafety(w, r, truncate(body, 3000)) {
+		return
+	}
+
+	if suggestion != "" && !a.checkPromptSafety(w, r, suggestion) {
 		return
 	}
 
@@ -454,10 +459,15 @@ func (a *Admin) AIRewrite(w http.ResponseWriter, r *http.Request) {
 	}
 
 	prompt := fmt.Sprintf("Title: %s\n\nContent to rewrite:\n%s", title, truncate(body, 3000))
+	if suggestion != "" {
+		prompt += fmt.Sprintf("\n\nEditor's guidance: %s", suggestion)
+	}
 
 	systemPrompt := fmt.Sprintf(`You are a professional content editor. Rewrite the given content
 in a %s tone. Preserve the key information and structure but adjust the language and style.
-The content uses Markdown formatting — preserve all Markdown syntax. Output ONLY the rewritten content, nothing else.`, toneDesc)
+The content uses Markdown formatting — preserve all Markdown syntax.
+If the editor provided guidance, follow those instructions carefully while applying the requested tone.
+Output ONLY the rewritten content, nothing else.`, toneDesc)
 
 	result, err := a.aiRegistry.GenerateForTask(r.Context(), ai.TaskContent, systemPrompt, prompt)
 	if err != nil {
