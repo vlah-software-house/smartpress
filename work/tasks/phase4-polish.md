@@ -24,6 +24,9 @@
 - [x] 2fa_verify standalone template fix
 
 ## Step 14: Testing
-- [ ] Unit tests (near 100% coverage)
-- [ ] Functional tests for handlers
+- [x] Unit tests: config 100%, models 100%, slug 100%, ai 93.7%, engine 93.3%, middleware 90.5%
+- [x] Integration tests: store 82.3%, cache 81.0%, session 81.4%, render 84.3%, database 43.7%
+- [x] Functional tests for handlers: 69.7% coverage (admin CRUD, auth flow, public pages, AI endpoints)
+- [x] AI provider HTTP mock tests: 44 tests covering all 4 providers (OpenAI, Claude, Gemini, Mistral)
+- [x] Total project coverage: 70.0%
 - [ ] Playwright E2E tests for admin UI

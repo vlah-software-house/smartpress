@@ -155,3 +155,38 @@ func TestRateLimiterCleanup(t *testing.T) {
 		t.Errorf("cleanup should remove expired entries, got %d", count)
 	}
 }
+
+// TestRateLimiterCleanupRetainsRecentEntries verifies that cleanup keeps
+// entries that still have recent (non-expired) timestamps.
+func TestRateLimiterCleanupRetainsRecentEntries(t *testing.T) {
+	rl := NewRateLimiter(10, 200*time.Millisecond)
+	defer rl.Stop()
+
+	// Add entries for two IPs.
+	rl.allow("ip-old")
+	rl.allow("ip-fresh")
+
+	// Wait long enough for "ip-old" to expire.
+	time.Sleep(250 * time.Millisecond)
+
+	// Add a new entry for "ip-fresh" so it has a recent timestamp.
+	rl.allow("ip-fresh")
+
+	rl.cleanup()
+
+	rl.mu.RLock()
+	_, oldExists := rl.clients["ip-old"]
+	_, freshExists := rl.clients["ip-fresh"]
+	count := len(rl.clients)
+	rl.mu.RUnlock()
+
+	if oldExists {
+		t.Error("ip-old should have been cleaned up (all timestamps expired)")
+	}
+	if !freshExists {
+		t.Error("ip-fresh should still exist (has recent timestamp)")
+	}
+	if count != 1 {
+		t.Errorf("expected 1 remaining client, got %d", count)
+	}
+}

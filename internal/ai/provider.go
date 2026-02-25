@@ -117,6 +117,14 @@ func (r *Registry) Available() []string {
 	return names
 }
 
+// Register adds or replaces a provider in the registry. This allows injecting
+// custom providers at runtime (e.g. for testing or plugin-based providers).
+func (r *Registry) Register(name string, p Provider) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.providers[name] = p
+}
+
 // HasProvider checks whether a named provider is configured and available.
 func (r *Registry) HasProvider(name string) bool {
 	r.mu.RLock()
