@@ -41,6 +41,9 @@ func (m *mockAIProvider) Name() string { return m.name }
 func (m *mockAIProvider) Generate(_ context.Context, _, _ string) (string, error) {
 	return m.response, m.err
 }
+func (m *mockAIProvider) GenerateWithModel(_ context.Context, _, _, _ string) (string, error) {
+	return m.response, m.err
+}
 
 func envOr(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
@@ -169,9 +172,9 @@ func newTestEnv(t *testing.T) *testEnv {
 	}
 
 	admin := NewAdmin(renderer, sessions, contentStore, userStore, templateStore,
-		mediaStore, nil, nil, eng, pageCache, cacheLogStore, aiRegistry, aiCfg)
+		mediaStore, nil, nil, nil, eng, pageCache, cacheLogStore, aiRegistry, aiCfg)
 	auth := NewAuth(renderer, sessions, userStore)
-	public := NewPublic(eng, contentStore, nil, nil, pageCache)
+	public := NewPublic(eng, contentStore, nil, nil, nil, pageCache)
 
 	return &testEnv{
 		DB:            db,

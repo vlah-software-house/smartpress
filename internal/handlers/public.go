@@ -5,11 +5,14 @@
 package handlers
 
 import (
+	"fmt"
 	"html"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
 	"yaaicms/internal/cache"
 	"yaaicms/internal/engine"
@@ -25,17 +28,19 @@ type Public struct {
 	engine        *engine.Engine
 	contentStore  *store.ContentStore
 	mediaStore    *store.MediaStore
+	variantStore  *store.VariantStore
 	storageClient *storage.Client
 	pageCache     *cache.PageCache
 }
 
-// NewPublic creates a new Public handler group. mediaStore and
-// storageClient may be nil if S3 is not configured.
-func NewPublic(eng *engine.Engine, contentStore *store.ContentStore, mediaStore *store.MediaStore, storageClient *storage.Client, pageCache *cache.PageCache) *Public {
+// NewPublic creates a new Public handler group. mediaStore, variantStore,
+// and storageClient may be nil if S3 is not configured.
+func NewPublic(eng *engine.Engine, contentStore *store.ContentStore, mediaStore *store.MediaStore, variantStore *store.VariantStore, storageClient *storage.Client, pageCache *cache.PageCache) *Public {
 	return &Public{
 		engine:        eng,
 		contentStore:  contentStore,
 		mediaStore:    mediaStore,
+		variantStore:  variantStore,
 		storageClient: storageClient,
 		pageCache:     pageCache,
 	}
@@ -74,7 +79,7 @@ func (p *Public) Homepage(w http.ResponseWriter, r *http.Request) {
 	// Fall back to a "home" page if it exists.
 	home, err := p.contentStore.FindBySlug("home")
 	if err == nil && home != nil {
-		rendered, err := p.engine.RenderPage(home, p.resolveFeaturedImageURL(home))
+		rendered, err := p.engine.RenderPage(home, p.resolveFeaturedImage(home))
 		if err == nil {
 			p.pageCache.Set(ctx, cache.HomepageKey(), rendered)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -121,7 +126,7 @@ func (p *Public) Page(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rendered, err := p.engine.RenderPage(content, p.resolveFeaturedImageURL(content))
+	rendered, err := p.engine.RenderPage(content, p.resolveFeaturedImage(content))
 	if err != nil {
 		slog.Error("render page failed", "error", err, "slug", slugParam)
 		// Fall back to a safe error page when the template engine fails.
@@ -146,40 +151,111 @@ func (p *Public) Page(w http.ResponseWriter, r *http.Request) {
 	w.Write(rendered)
 }
 
-// resolveFeaturedImageURL returns the public URL for a content item's
-// featured image, or "" if none is set or storage is not configured.
-func (p *Public) resolveFeaturedImageURL(content *models.Content) string {
+// resolveFeaturedImage returns the featured image data (URL, srcset, alt)
+// for a content item, or nil if none is set or storage is not configured.
+func (p *Public) resolveFeaturedImage(content *models.Content) *engine.FeaturedImage {
 	if content.FeaturedImageID == nil || p.mediaStore == nil || p.storageClient == nil {
-		return ""
+		return nil
 	}
 	media, err := p.mediaStore.FindByID(*content.FeaturedImageID)
 	if err != nil || media == nil {
-		return ""
+		return nil
 	}
-	if media.Bucket == p.storageClient.PublicBucket() {
-		return p.storageClient.FileURL(media.S3Key)
+	if media.Bucket != p.storageClient.PublicBucket() {
+		return nil
 	}
-	return ""
+
+	img := &engine.FeaturedImage{
+		URL: p.storageClient.FileURL(media.S3Key),
+	}
+	if media.AltText != nil {
+		img.Alt = *media.AltText
+	}
+
+	// Build srcset from responsive variants.
+	if p.variantStore != nil {
+		img.Srcset = p.buildSrcset(media.ID)
+	}
+
+	return img
 }
 
-// resolveFeaturedImages returns a map of content ID → featured image URL
-// for a slice of content items. Used by the article_loop template.
-func (p *Public) resolveFeaturedImages(posts []models.Content) map[string]string {
+// resolveFeaturedImages returns a map of content ID → featured image data
+// for a slice of content items. Uses batch variant lookup for efficiency.
+func (p *Public) resolveFeaturedImages(posts []models.Content) map[string]*engine.FeaturedImage {
 	if p.mediaStore == nil || p.storageClient == nil {
 		return nil
 	}
-	result := make(map[string]string)
+
+	// Collect media IDs to look up.
+	type mediaRef struct {
+		contentID string
+		mediaID   uuid.UUID
+	}
+	var refs []mediaRef
+	var mediaIDs []uuid.UUID
 	for _, post := range posts {
 		if post.FeaturedImageID == nil {
 			continue
 		}
-		media, err := p.mediaStore.FindByID(*post.FeaturedImageID)
+		refs = append(refs, mediaRef{contentID: post.ID.String(), mediaID: *post.FeaturedImageID})
+		mediaIDs = append(mediaIDs, *post.FeaturedImageID)
+	}
+
+	if len(refs) == 0 {
+		return nil
+	}
+
+	// Batch-fetch variants for all media IDs at once.
+	var variantMap map[uuid.UUID][]models.MediaVariant
+	if p.variantStore != nil && len(mediaIDs) > 0 {
+		variantMap, _ = p.variantStore.FindByMediaIDs(mediaIDs)
+	}
+
+	result := make(map[string]*engine.FeaturedImage)
+	for _, ref := range refs {
+		media, err := p.mediaStore.FindByID(ref.mediaID)
 		if err != nil || media == nil {
 			continue
 		}
-		if media.Bucket == p.storageClient.PublicBucket() {
-			result[post.ID.String()] = p.storageClient.FileURL(media.S3Key)
+		if media.Bucket != p.storageClient.PublicBucket() {
+			continue
 		}
+		img := &engine.FeaturedImage{
+			URL: p.storageClient.FileURL(media.S3Key),
+		}
+		if media.AltText != nil {
+			img.Alt = *media.AltText
+		}
+		if variants, ok := variantMap[ref.mediaID]; ok {
+			img.Srcset = p.buildSrcsetFromVariants(variants)
+		}
+		result[ref.contentID] = img
 	}
 	return result
+}
+
+// buildSrcset fetches variants for a single media ID and builds an HTML
+// srcset string like "url_sm.webp 640w, url_md.webp 1024w".
+func (p *Public) buildSrcset(mediaID uuid.UUID) string {
+	variants, err := p.variantStore.FindByMediaID(mediaID)
+	if err != nil || len(variants) == 0 {
+		return ""
+	}
+	return p.buildSrcsetFromVariants(variants)
+}
+
+// buildSrcsetFromVariants constructs an HTML srcset string from a slice of
+// media variants. Only includes non-thumb variants (sm, md, lg) since
+// thumb is too small for content images.
+func (p *Public) buildSrcsetFromVariants(variants []models.MediaVariant) string {
+	var parts []string
+	for _, v := range variants {
+		if v.Name == "thumb" {
+			continue // Thumb is for admin previews, not srcset.
+		}
+		url := p.storageClient.FileURL(v.S3Key)
+		parts = append(parts, fmt.Sprintf("%s %dw", url, v.Width))
+	}
+	return strings.Join(parts, ", ")
 }

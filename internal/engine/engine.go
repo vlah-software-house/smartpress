@@ -19,30 +19,43 @@ import (
 	"yaaicms/internal/store"
 )
 
+// FeaturedImage holds image data for templates including responsive variants.
+// Templates can use {{.FeaturedImageURL}} for the main URL (backward-compat)
+// and {{.FeaturedImageSrcset}} for responsive <img srcset="...">.
+type FeaturedImage struct {
+	URL    string // Public URL of the original image (or largest variant)
+	Srcset string // Pre-built srcset string: "url_sm.webp 640w, url_md.webp 1024w, ..."
+	Alt    string // Alt text for accessibility
+}
+
 // PageData holds all variables available to a page template when rendering
 // a public page. Template authors (or AI) can use these as {{.Title}}, etc.
 type PageData struct {
-	SiteName         string
-	Title            string
-	Body             template.HTML // Content body — raw HTML from editor
-	Excerpt          string
-	MetaDescription  string
-	MetaKeywords     string
-	FeaturedImageURL string        // Public URL of the featured image (empty if none)
-	Slug             string
-	PublishedAt      string
-	Header           template.HTML // Pre-rendered header fragment
-	Footer           template.HTML // Pre-rendered footer fragment
-	Year             int
+	SiteName            string
+	Title               string
+	Body                template.HTML // Content body — raw HTML from editor
+	Excerpt             string
+	MetaDescription     string
+	MetaKeywords        string
+	FeaturedImageURL    string        // Public URL of the featured image (empty if none)
+	FeaturedImageSrcset string        // Responsive srcset for the featured image
+	FeaturedImageAlt    string        // Alt text for the featured image
+	Slug                string
+	PublishedAt         string
+	Header              template.HTML // Pre-rendered header fragment
+	Footer              template.HTML // Pre-rendered footer fragment
+	Year                int
 }
 
 // PostItem represents a single post in a listing (used by article_loop template).
 type PostItem struct {
-	Title            string
-	Slug             string
-	Excerpt          string
-	FeaturedImageURL string // Public URL of the featured image (empty if none)
-	PublishedAt      string
+	Title               string
+	Slug                string
+	Excerpt             string
+	FeaturedImageURL    string // Public URL of the featured image (empty if none)
+	FeaturedImageSrcset string // Responsive srcset for the featured image
+	FeaturedImageAlt    string // Alt text for the featured image
+	PublishedAt         string
 }
 
 // ListData holds variables available to the article_loop template.
@@ -84,9 +97,9 @@ func (e *Engine) InvalidateAllTemplates() {
 }
 
 // RenderPage renders a content item using the active page template,
-// header, and footer. featuredImageURL is the public URL for the
-// featured image (pass "" if none). Returns the complete HTML as a byte slice.
-func (e *Engine) RenderPage(content *models.Content, featuredImageURL string) ([]byte, error) {
+// header, and footer. img holds the featured image data including responsive
+// variants (pass nil if none). Returns the complete HTML as a byte slice.
+func (e *Engine) RenderPage(content *models.Content, img *FeaturedImage) ([]byte, error) {
 	// Load active templates for each component.
 	header, err := e.renderFragment(models.TemplateTypeHeader, nil)
 	if err != nil {
@@ -124,15 +137,20 @@ func (e *Engine) RenderPage(content *models.Content, featuredImageURL string) ([
 	}
 
 	data := PageData{
-		SiteName:         "YaaiCMS",
-		Title:            content.Title,
-		Body:             template.HTML(bodyHTML),
-		FeaturedImageURL: featuredImageURL,
-		Slug:             content.Slug,
-		PublishedAt:      publishedAt,
-		Header:           template.HTML(header),
-		Footer:           template.HTML(footer),
-		Year:             time.Now().Year(),
+		SiteName:    "YaaiCMS",
+		Title:       content.Title,
+		Body:        template.HTML(bodyHTML),
+		Slug:        content.Slug,
+		PublishedAt: publishedAt,
+		Header:      template.HTML(header),
+		Footer:      template.HTML(footer),
+		Year:        time.Now().Year(),
+	}
+
+	if img != nil {
+		data.FeaturedImageURL = img.URL
+		data.FeaturedImageSrcset = img.Srcset
+		data.FeaturedImageAlt = img.Alt
 	}
 
 	if content.Excerpt != nil {
@@ -150,8 +168,9 @@ func (e *Engine) RenderPage(content *models.Content, featuredImageURL string) ([
 }
 
 // RenderPostList renders the article_loop template with a list of posts.
-// featuredImages maps content ID strings to their public image URLs.
-func (e *Engine) RenderPostList(posts []models.Content, featuredImages map[string]string) ([]byte, error) {
+// featuredImages maps content ID strings to their featured image data
+// including responsive variants.
+func (e *Engine) RenderPostList(posts []models.Content, featuredImages map[string]*FeaturedImage) ([]byte, error) {
 	header, err := e.renderFragment(models.TemplateTypeHeader, nil)
 	if err != nil {
 		slog.Warn("header template not found or failed", "error", err)
@@ -181,8 +200,10 @@ func (e *Engine) RenderPostList(posts []models.Content, featuredImages map[strin
 		if p.PublishedAt != nil {
 			item.PublishedAt = p.PublishedAt.Format("January 2, 2006")
 		}
-		if featuredImages != nil {
-			item.FeaturedImageURL = featuredImages[p.ID.String()]
+		if img := featuredImages[p.ID.String()]; img != nil {
+			item.FeaturedImageURL = img.URL
+			item.FeaturedImageSrcset = img.Srcset
+			item.FeaturedImageAlt = img.Alt
 		}
 		postItems = append(postItems, item)
 	}

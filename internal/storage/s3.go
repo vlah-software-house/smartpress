@@ -82,6 +82,25 @@ func (c *Client) Upload(ctx context.Context, bucket, key, contentType string, bo
 	return nil
 }
 
+// Download retrieves an object from the specified bucket and returns its
+// contents as a byte slice. Used for regenerating image variants from the
+// original stored in S3.
+func (c *Client) Download(ctx context.Context, bucket, key string) ([]byte, error) {
+	output, err := c.s3.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("s3 download %s/%s: %w", bucket, key, err)
+	}
+	defer output.Body.Close()
+	data, err := io.ReadAll(output.Body)
+	if err != nil {
+		return nil, fmt.Errorf("s3 read body %s/%s: %w", bucket, key, err)
+	}
+	return data, nil
+}
+
 // Delete removes an object from the specified bucket.
 func (c *Client) Delete(ctx context.Context, bucket, key string) error {
 	_, err := c.s3.DeleteObject(ctx, &s3.DeleteObjectInput{
