@@ -18,7 +18,8 @@ spec:
     spec:
       containers:
         - name: yaaicms
-          image: yaaicms:latest
+          image: private-registry.default.svc.cluster.local:5000/yaaicms:latest
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080

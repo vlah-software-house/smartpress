@@ -6,10 +6,8 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: yaaicms
-  annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
 spec:
-  ingressClassName: nginx
+  ingressClassName: traefik
   rules:
     - host: yaaicms.example.com
       http:

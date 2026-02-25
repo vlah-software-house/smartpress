@@ -62,8 +62,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Seed development data (no-op if data already exists).
-	if cfg.IsDev() {
+	// Seed initial data in development and testing environments
+	// (no-op if data already exists).
+	if cfg.IsDev() || cfg.Env == "testing" {
 		if err := database.Seed(db); err != nil {
 			slog.Error("failed to seed database", "error", err)
 			os.Exit(1)

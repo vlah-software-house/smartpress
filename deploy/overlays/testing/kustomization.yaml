@@ -8,7 +8,7 @@ kind: Kustomization
 resources:
   - ../../base
 
-namespace: yaaicms-testing
+namespace: yaaicms
 
 patches:
   - path: ingress-patch.yaml
@@ -17,7 +17,7 @@ patches:
 # To create the secrets from the .secrets file:
 #   kubectl create secret generic yaaicms-secrets \
 #     --from-env-file=../../.secrets \
-#     -n yaaicms-testing \
+#     -n yaaicms \
 #     --dry-run=client -o yaml > secret.yaml
 #
 # Then add secret.yaml to resources (it is gitignored).
