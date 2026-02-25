@@ -35,54 +35,62 @@ const (
 //
 // This works well with HTMX: the admin layout sets hx-headers with the
 // CSRF token so all HTMX requests include it automatically.
-func CSRF(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var token string
+//
+// Deprecated: Use NewCSRF(secure) to control the cookie Secure flag.
+var CSRF = NewCSRF(false)
 
-		// Ensure a CSRF token cookie exists.
-		cookie, err := r.Cookie(CSRFCookieName)
-		if err != nil || cookie.Value == "" {
-			token, err = generateCSRFToken()
-			if err != nil {
-				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+// NewCSRF returns a CSRF middleware with the cookie Secure flag controlled
+// by the secure parameter. Set secure=true in production (behind TLS).
+func NewCSRF(secure bool) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var token string
+
+			// Ensure a CSRF token cookie exists.
+			cookie, err := r.Cookie(CSRFCookieName)
+			if err != nil || cookie.Value == "" {
+				token, err = generateCSRFToken()
+				if err != nil {
+					http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+					return
+				}
+				http.SetCookie(w, &http.Cookie{
+					Name:     CSRFCookieName,
+					Value:    token,
+					Path:     "/",
+					HttpOnly: false, // JS needs to read this for HTMX hx-headers
+					Secure:   secure,
+					SameSite: http.SameSiteStrictMode,
+				})
+			} else {
+				token = cookie.Value
+			}
+
+			// Store the token in context so templates can always access it.
+			ctx := context.WithValue(r.Context(), csrfContextKey, token)
+			r = r.WithContext(ctx)
+
+			// Safe methods don't need CSRF validation.
+			if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
+				next.ServeHTTP(w, r)
 				return
 			}
-			http.SetCookie(w, &http.Cookie{
-				Name:     CSRFCookieName,
-				Value:    token,
-				Path:     "/",
-				HttpOnly: false, // JS needs to read this for HTMX hx-headers
-				Secure:   false, // Set to true behind TLS
-				SameSite: http.SameSiteStrictMode,
-			})
-		} else {
-			token = cookie.Value
-		}
 
-		// Store the token in context so templates can always access it.
-		ctx := context.WithValue(r.Context(), csrfContextKey, token)
-		r = r.WithContext(ctx)
+			// For state-changing methods, validate the token.
+			// Check header first (HTMX), then form field.
+			submitted := r.Header.Get(CSRFHeaderName)
+			if submitted == "" {
+				submitted = r.FormValue(CSRFFormField)
+			}
 
-		// Safe methods don't need CSRF validation.
-		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
+			if subtle.ConstantTimeCompare([]byte(token), []byte(submitted)) != 1 {
+				http.Error(w, "CSRF token mismatch", http.StatusForbidden)
+				return
+			}
+
 			next.ServeHTTP(w, r)
-			return
-		}
-
-		// For state-changing methods, validate the token.
-		// Check header first (HTMX), then form field.
-		submitted := r.Header.Get(CSRFHeaderName)
-		if submitted == "" {
-			submitted = r.FormValue(CSRFFormField)
-		}
-
-		if subtle.ConstantTimeCompare([]byte(token), []byte(submitted)) != 1 {
-			http.Error(w, "CSRF token mismatch", http.StatusForbidden)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
+		})
+	}
 }
 
 // CSRFTokenFromCtx extracts the CSRF token from the request context.

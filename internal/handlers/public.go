@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"fmt"
+	"html"
 	"log/slog"
 	"net/http"
 
@@ -38,9 +38,9 @@ func (p *Public) Homepage(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Check L2 cache first.
-	if html, ok := p.pageCache.Get(ctx, cache.HomepageKey()); ok {
+	if cached, ok := p.pageCache.Get(ctx, cache.HomepageKey()); ok {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(html)
+		w.Write(cached)
 		return
 	}
 
@@ -51,11 +51,11 @@ func (p *Public) Homepage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(posts) > 0 {
-		html, err := p.engine.RenderPostList(posts)
+		rendered, err := p.engine.RenderPostList(posts)
 		if err == nil {
-			p.pageCache.Set(ctx, cache.HomepageKey(), html)
+			p.pageCache.Set(ctx, cache.HomepageKey(), rendered)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.Write(html)
+			w.Write(rendered)
 			return
 		}
 		slog.Warn("article_loop render failed, trying homepage", "error", err)
@@ -64,11 +64,11 @@ func (p *Public) Homepage(w http.ResponseWriter, r *http.Request) {
 	// Fall back to a "home" page if it exists.
 	home, err := p.contentStore.FindBySlug("home")
 	if err == nil && home != nil {
-		html, err := p.engine.RenderPage(home)
+		rendered, err := p.engine.RenderPage(home)
 		if err == nil {
-			p.pageCache.Set(ctx, cache.HomepageKey(), html)
+			p.pageCache.Set(ctx, cache.HomepageKey(), rendered)
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.Write(html)
+			w.Write(rendered)
 			return
 		}
 		slog.Warn("homepage render failed", "error", err)
@@ -93,9 +93,9 @@ func (p *Public) Page(w http.ResponseWriter, r *http.Request) {
 	slugParam := chi.URLParam(r, "slug")
 
 	// Check L2 cache first.
-	if html, ok := p.pageCache.Get(ctx, cache.SlugKey(slugParam)); ok {
+	if cached, ok := p.pageCache.Get(ctx, cache.SlugKey(slugParam)); ok {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(html)
+		w.Write(cached)
 		return
 	}
 
@@ -111,21 +111,27 @@ func (p *Public) Page(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	html, err := p.engine.RenderPage(content)
+	rendered, err := p.engine.RenderPage(content)
 	if err != nil {
 		slog.Error("render page failed", "error", err, "slug", slugParam)
-		// Fall back to raw content if template engine fails (not cached).
+		// Fall back to a safe error page when the template engine fails.
+		// Never render raw user content — it bypasses html/template escaping.
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintf(w, `<!DOCTYPE html><html><head><title>%s</title>
+		safeTitle := html.EscapeString(content.Title)
+		w.Write([]byte(`<!DOCTYPE html><html><head><title>` + safeTitle + `</title>
 <script src="https://cdn.tailwindcss.com"></script></head>
-<body class="max-w-3xl mx-auto p-8"><h1 class="text-3xl font-bold mb-4">%s</h1>
-<div>%s</div></body></html>`, content.Title, content.Title, content.Body)
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+<div class="text-center">
+<h1 class="text-3xl font-bold text-gray-900">` + safeTitle + `</h1>
+<p class="mt-2 text-gray-500">This page could not be rendered. Please check your templates.</p>
+<a href="/" class="mt-4 inline-block text-indigo-600 hover:text-indigo-800 text-sm">Go to Homepage</a>
+</div></body></html>`))
 		return
 	}
 
 	// Store in L2 cache.
-	p.pageCache.Set(ctx, cache.SlugKey(slugParam), html)
+	p.pageCache.Set(ctx, cache.SlugKey(slugParam), rendered)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write(html)
+	w.Write(rendered)
 }

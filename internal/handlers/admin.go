@@ -5,11 +5,12 @@ package handlers
 
 import (
 	"context"
-	"fmt"
+	"html"
 	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+
 	"github.com/google/uuid"
 
 	"smartpress/internal/ai"
@@ -198,6 +199,40 @@ func (a *Admin) createContent(w http.ResponseWriter, r *http.Request, contentTyp
 	metaDesc := r.FormValue("meta_description")
 	metaKw := r.FormValue("meta_keywords")
 
+	// Validate inputs.
+	if errMsg := validateContent(title, contentSlug, body); errMsg != "" {
+		section := "posts"
+		if contentType == models.ContentTypePage {
+			section = "pages"
+		}
+		a.renderer.Page(w, r, "content_form", &render.PageData{
+			Title:   "New " + string(contentType),
+			Section: section,
+			Data: map[string]any{
+				"ContentType": string(contentType),
+				"IsNew":       true,
+				"Error":       errMsg,
+			},
+		})
+		return
+	}
+	if errMsg := validateMetadata(excerpt, metaDesc, metaKw); errMsg != "" {
+		section := "posts"
+		if contentType == models.ContentTypePage {
+			section = "pages"
+		}
+		a.renderer.Page(w, r, "content_form", &render.PageData{
+			Title:   "New " + string(contentType),
+			Section: section,
+			Data: map[string]any{
+				"ContentType": string(contentType),
+				"IsNew":       true,
+				"Error":       errMsg,
+			},
+		})
+		return
+	}
+
 	if contentSlug == "" {
 		contentSlug = slug.Generate(title)
 	}
@@ -302,18 +337,49 @@ func (a *Admin) updateContent(w http.ResponseWriter, r *http.Request, section st
 		return
 	}
 
-	item.Title = r.FormValue("title")
-	item.Body = r.FormValue("body")
+	title := r.FormValue("title")
+	body := r.FormValue("body")
+	newSlug := r.FormValue("slug")
+	excerpt := r.FormValue("excerpt")
+	metaDesc := r.FormValue("meta_description")
+	metaKw := r.FormValue("meta_keywords")
+
+	// Validate inputs.
+	if errMsg := validateContent(title, newSlug, body); errMsg != "" {
+		a.renderer.Page(w, r, "content_form", &render.PageData{
+			Title:   "Edit",
+			Section: section,
+			Data: map[string]any{
+				"ContentType": string(item.Type),
+				"IsNew":       false,
+				"Item":        item,
+				"Error":       errMsg,
+			},
+		})
+		return
+	}
+	if errMsg := validateMetadata(excerpt, metaDesc, metaKw); errMsg != "" {
+		a.renderer.Page(w, r, "content_form", &render.PageData{
+			Title:   "Edit",
+			Section: section,
+			Data: map[string]any{
+				"ContentType": string(item.Type),
+				"IsNew":       false,
+				"Item":        item,
+				"Error":       errMsg,
+			},
+		})
+		return
+	}
+
+	item.Title = title
+	item.Body = body
 	item.Status = models.ContentStatus(r.FormValue("status"))
-	item.Slug = r.FormValue("slug")
+	item.Slug = newSlug
 
 	if item.Slug == "" {
 		item.Slug = slug.Generate(item.Title)
 	}
-
-	excerpt := r.FormValue("excerpt")
-	metaDesc := r.FormValue("meta_description")
-	metaKw := r.FormValue("meta_keywords")
 
 	if excerpt != "" {
 		item.Excerpt = &excerpt
@@ -401,6 +467,20 @@ func (a *Admin) TemplateCreate(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	tmplType := models.TemplateType(r.FormValue("type"))
 	htmlContent := r.FormValue("html_content")
+
+	// Validate input lengths.
+	if errMsg := validateTemplate(name, htmlContent); errMsg != "" {
+		a.renderer.Page(w, r, "template_form", &render.PageData{
+			Title:   "New Template",
+			Section: "templates",
+			Data: map[string]any{
+				"IsNew": true,
+				"Error": errMsg,
+				"Item":  &models.Template{Name: name, Type: tmplType, HTMLContent: htmlContent},
+			},
+		})
+		return
+	}
 
 	// Validate the template syntax before saving.
 	if err := a.engine.ValidateTemplate(htmlContent); err != nil {
@@ -572,7 +652,8 @@ func (a *Admin) TemplatePreview(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `<div class="p-4 bg-red-50 border border-red-200 rounded text-red-800 text-sm">Template error: %s</div>`, err.Error())
+		safeErr := html.EscapeString(err.Error())
+		w.Write([]byte(`<div class="p-4 bg-red-50 border border-red-200 rounded text-red-800 text-sm">Template error: ` + safeErr + `</div>`))
 		return
 	}
 

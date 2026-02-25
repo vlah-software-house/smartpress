@@ -94,7 +94,10 @@ func (a *Auth) LoginSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// TwoFASetupPage generates a TOTP secret and displays the QR code.
+// TwoFASetupPage displays the QR code for TOTP setup. It only generates
+// a new secret if the user doesn't already have one (first-time setup).
+// Refreshing the page re-displays the same secret, preventing accidental
+// secret rotation that would invalidate already-scanned QR codes.
 func (a *Auth) TwoFASetupPage(w http.ResponseWriter, r *http.Request) {
 	sess := middleware.SessionFromCtx(r.Context())
 	if sess == nil {
@@ -102,26 +105,46 @@ func (a *Auth) TwoFASetupPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate a new TOTP key.
-	key, err := totp.Generate(totp.GenerateOpts{
-		Issuer:      "SmartPress",
-		AccountName: sess.Email,
-	})
-	if err != nil {
-		slog.Error("totp generate failed", "error", err)
+	// Check if the user already has a pending (unverified) secret.
+	user, err := a.userStore.FindByID(sess.UserID)
+	if err != nil || user == nil {
+		slog.Error("user lookup for 2fa setup failed", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	// Save the secret to the database.
-	if err := a.userStore.SetTOTPSecret(sess.UserID, key.Secret()); err != nil {
-		slog.Error("save totp secret failed", "error", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	var secret string
+	if user.TOTPSecret != nil && !user.TOTPEnabled {
+		// Reuse the existing pending secret (user refreshed the page).
+		secret = *user.TOTPSecret
+	} else if user.TOTPSecret == nil {
+		// Generate a new TOTP key for first-time setup.
+		key, err := totp.Generate(totp.GenerateOpts{
+			Issuer:      "SmartPress",
+			AccountName: sess.Email,
+		})
+		if err != nil {
+			slog.Error("totp generate failed", "error", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		secret = key.Secret()
+
+		// Save the secret to the database (still unverified).
+		if err := a.userStore.SetTOTPSecret(sess.UserID, secret); err != nil {
+			slog.Error("save totp secret failed", "error", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// User already has 2FA enabled — shouldn't be here.
+		http.Redirect(w, r, "/admin/dashboard", http.StatusSeeOther)
 		return
 	}
 
 	// Generate QR code as base64-encoded PNG.
-	qrPNG, err := qrcode.Encode(key.URL(), qrcode.Medium, 256)
+	otpURL := fmt.Sprintf("otpauth://totp/SmartPress:%s?secret=%s&issuer=SmartPress", sess.Email, secret)
+	qrPNG, err := qrcode.Encode(otpURL, qrcode.Medium, 256)
 	if err != nil {
 		slog.Error("qr code generation failed", "error", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -133,7 +156,7 @@ func (a *Auth) TwoFASetupPage(w http.ResponseWriter, r *http.Request) {
 		Title: "Set Up Two-Factor Authentication",
 		Data: map[string]any{
 			"QRCode": qrBase64,
-			"Secret": key.Secret(),
+			"Secret": secret,
 		},
 	})
 }

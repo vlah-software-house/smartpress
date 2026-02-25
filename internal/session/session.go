@@ -43,15 +43,19 @@ type Data struct {
 
 // Store manages session lifecycle in Valkey.
 type Store struct {
-	client *redis.Client
-	ttl    time.Duration
+	client     *redis.Client
+	ttl        time.Duration
+	secureCook bool // true when running behind TLS (non-development)
 }
 
 // NewStore creates a session store backed by the given Valkey client.
-func NewStore(client *redis.Client) *Store {
+// Set secure to true in production/testing to mark cookies as Secure
+// (browser will only send them over HTTPS).
+func NewStore(client *redis.Client, secure bool) *Store {
 	return &Store{
-		client: client,
-		ttl:    DefaultTTL,
+		client:     client,
+		ttl:        DefaultTTL,
+		secureCook: secure,
 	}
 }
 
@@ -79,7 +83,7 @@ func (s *Store) Create(ctx context.Context, w http.ResponseWriter, data *Data) (
 		Value:    id,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false, // Set to true behind TLS in production
+		Secure:   s.secureCook,
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   int(s.ttl.Seconds()),
 	})

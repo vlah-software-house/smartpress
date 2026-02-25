@@ -5,6 +5,7 @@ package router
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -14,12 +15,19 @@ import (
 )
 
 // New creates and returns the configured Chi router with all middleware
-// and route groups wired up.
-func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth, public *handlers.Public) chi.Router {
+// and route groups wired up. Set secureCookies to true in production to
+// mark CSRF cookies as Secure (HTTPS-only).
+func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth, public *handlers.Public, secureCookies bool) chi.Router {
 	r := chi.NewRouter()
+
+	// Rate limiters: auth endpoints are tightly limited (brute-force protection),
+	// AI endpoints get a generous limit (authenticated users, slow operations).
+	authLimiter := middleware.NewRateLimiter(10, 1*time.Minute)
+	aiLimiter := middleware.NewRateLimiter(30, 1*time.Minute)
 
 	// Global middleware — applied to every request.
 	r.Use(middleware.Recoverer)
+	r.Use(middleware.SecureHeaders)
 	r.Use(middleware.Logger)
 	r.Use(middleware.LoadSession(sessionStore))
 
@@ -28,16 +36,20 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 
 	// Admin routes — require authentication and CSRF protection.
 	r.Route("/admin", func(r chi.Router) {
-		r.Use(middleware.CSRF)
+		r.Use(middleware.NewCSRF(secureCookies))
 
-		// Auth pages — accessible without a session.
-		r.Get("/login", auth.LoginPage)
-		r.Post("/login", auth.LoginSubmit)
-		r.Post("/logout", auth.Logout)
+		// Auth pages — rate-limited to prevent brute force.
+		r.Group(func(r chi.Router) {
+			r.Use(authLimiter.Middleware)
+			r.Get("/login", auth.LoginPage)
+			r.Post("/login", auth.LoginSubmit)
+			r.Post("/logout", auth.Logout)
+		})
 
-		// 2FA — requires auth but NOT completed 2FA.
+		// 2FA — requires auth but NOT completed 2FA. Rate-limited.
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.RequireAuth)
+			r.Use(authLimiter.Middleware)
 			r.Get("/2fa/setup", auth.TwoFASetupPage)
 			r.Get("/2fa/verify", auth.TwoFAVerifyPage)
 			r.Post("/2fa/verify", auth.TwoFAVerifySubmit)
@@ -94,6 +106,7 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 
 			// AI Assistant (content editor helpers + template builder)
 			r.Route("/ai", func(r chi.Router) {
+				r.Use(aiLimiter.Middleware)
 				r.Post("/suggest-title", admin.AISuggestTitle)
 				r.Post("/generate-excerpt", admin.AIGenerateExcerpt)
 				r.Post("/seo-metadata", admin.AISEOMetadata)

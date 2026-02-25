@@ -8,6 +8,7 @@ import (
 	"embed"
 	"fmt"
 	"log/slog"
+	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -23,6 +24,11 @@ func Connect(dsn string) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("database open: %w", err)
 	}
+
+	// Set connection pool limits to prevent resource exhaustion.
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
 	// Verify the connection is alive.
 	if err := db.Ping(); err != nil {

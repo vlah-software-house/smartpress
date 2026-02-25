@@ -6,6 +6,7 @@ package ai
 import (
 	"context"
 	"fmt"
+	"sync"
 )
 
 // Provider defines the interface that all AI providers must implement.
@@ -28,7 +29,9 @@ type ProviderConfig struct {
 
 // Registry manages available AI providers and selects the active one.
 // It supports runtime switching by changing the active provider name.
+// All methods are safe for concurrent use.
 type Registry struct {
+	mu        sync.RWMutex
 	providers map[string]Provider
 	active    string
 }
@@ -71,6 +74,9 @@ func (r *Registry) Generate(ctx context.Context, systemPrompt, userPrompt string
 
 // Active returns the currently active provider.
 func (r *Registry) Active() (Provider, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	p, ok := r.providers[r.active]
 	if !ok {
 		return nil, fmt.Errorf("ai: no provider configured for %q", r.active)
@@ -81,6 +87,9 @@ func (r *Registry) Active() (Provider, error) {
 // SetActive switches the active provider at runtime. Returns an error if
 // the named provider has no API key configured.
 func (r *Registry) SetActive(name string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if _, ok := r.providers[name]; !ok {
 		return fmt.Errorf("ai: provider %q is not available (no API key?)", name)
 	}
@@ -90,11 +99,17 @@ func (r *Registry) SetActive(name string) error {
 
 // ActiveName returns the name of the currently active provider.
 func (r *Registry) ActiveName() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.active
 }
 
 // Available returns the names of all providers that have valid API keys.
 func (r *Registry) Available() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	var names []string
 	for name := range r.providers {
 		names = append(names, name)
@@ -104,6 +119,9 @@ func (r *Registry) Available() []string {
 
 // HasProvider checks whether a named provider is configured and available.
 func (r *Registry) HasProvider(name string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	_, ok := r.providers[name]
 	return ok
 }

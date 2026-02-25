@@ -74,7 +74,9 @@ func main() {
 	defer valkeyClient.Close()
 
 	// Initialize session store backed by Valkey.
-	sessionStore := session.NewStore(valkeyClient)
+	// In non-development environments, mark session cookies as Secure (HTTPS-only).
+	secureCookies := !cfg.IsDev()
+	sessionStore := session.NewStore(valkeyClient, secureCookies)
 
 	// Initialize the HTML template renderer for admin pages.
 	renderer, err := render.New()
@@ -125,7 +127,7 @@ func main() {
 	publicHandlers := handlers.NewPublic(eng, contentStore, pageCache)
 
 	// Set up the Chi router with all middleware and routes.
-	r := router.New(sessionStore, adminHandlers, authHandlers, publicHandlers)
+	r := router.New(sessionStore, adminHandlers, authHandlers, publicHandlers, secureCookies)
 
 	// Create the HTTP server with sensible timeouts.
 	// WriteTimeout must accommodate AI endpoints that wait on LLM responses
