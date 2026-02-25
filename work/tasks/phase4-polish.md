@@ -29,4 +29,4 @@
 - [x] Functional tests for handlers: 69.7% coverage (admin CRUD, auth flow, public pages, AI endpoints)
 - [x] AI provider HTTP mock tests: 44 tests covering all 4 providers (OpenAI, Claude, Gemini, Mistral)
 - [x] Total project coverage: 70.0%
-- [ ] Playwright E2E tests for admin UI
+- [x] Playwright E2E tests for admin UI (25 tests: auth+2FA, dashboard, posts CRUD, pages CRUD, templates, login, public, settings)

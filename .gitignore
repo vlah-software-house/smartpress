@@ -47,6 +47,7 @@ web/static/js/alpine.min.js
 # Playwright
 test-results/
 playwright-report/
+e2e/.auth/
 
 # K8s secrets (generated from .secrets, never committed)
 deploy/overlays/*/secret.yaml

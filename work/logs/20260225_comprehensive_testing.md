@@ -56,3 +56,30 @@ Added comprehensive test coverage across all SmartPress packages, bringing total
 - Session data injected via `middleware.SessionKey` context key
 - Mock AI provider via `Registry.Register()` for handler-level tests
 - All test data cleaned up via `t.Cleanup()`
+
+## Playwright E2E Tests
+
+Added 25 end-to-end tests using Playwright with Chromium, covering:
+
+### Test Files
+- `e2e/auth.setup.ts` — login + TOTP 2FA authentication setup (session reuse on re-runs)
+- `e2e/dashboard.spec.ts` — dashboard stats, quick actions, sidebar navigation (2 tests)
+- `e2e/posts.spec.ts` — full post CRUD lifecycle: list, create, edit, validate, delete (5 tests)
+- `e2e/pages.spec.ts` — page CRUD: list, create, public visibility, delete (4 tests)
+- `e2e/templates.spec.ts` — template management: list, create+delete, syntax validation, preview (4 tests)
+- `e2e/login.spec.ts` — login flow: invalid credentials, empty fields, page structure (3 tests)
+- `e2e/public.spec.ts` — public site: homepage, health, 404, auth redirect (4 tests)
+- `e2e/settings.spec.ts` — settings page AI providers, users list (2 tests)
+
+### Infrastructure
+- `playwright.config.ts` — sequential execution, Chromium only, auth state persistence
+- TOTP generation implemented via Node.js crypto (RFC 6238), no external dependencies
+- Auth setup reads TOTP secret from PostgreSQL via `psql` (execFileSync)
+- Session state cached in `e2e/.auth/admin.json` — avoids rate limiter on re-runs
+- Rate limiter awareness: tests minimize auth endpoint hits to stay within 10 req/min limit
+
+### Key Patterns
+- Forms use `#content-form button[type="submit"]` or `main button[type="submit"]` to avoid matching the hidden Sign Out submit button in the admin header
+- Assertions scoped to `page.locator('main')` to avoid strict-mode violations from sidebar duplicates
+- HTMX navigation handled by using `page.goto()` instead of `waitForURL` where sidebar uses HTMX partial swaps
+- `getByText('...', { exact: true })` for settings page to avoid matching env var names
