@@ -8,7 +8,7 @@
     <div class="flex items-center justify-between">
         <div>
             <h2 class="text-xl font-semibold text-gray-900">AI Template Builder</h2>
-            <p class="mt-1 text-sm text-gray-500">Describe the template you want and AI will generate it.</p>
+            <p class="mt-1 text-sm text-gray-500">Design individual templates or restyle everything for a cohesive look.</p>
         </div>
         <a href="/admin/templates"
            hx-get="/admin/templates"
@@ -19,209 +19,562 @@
         </a>
     </div>
 
-    <div class="flex gap-6">
-        <!-- Left column: Chat + Code -->
-        <div class="flex-1 min-w-0 space-y-4">
+    <!-- Mode tabs -->
+    <div class="border-b border-gray-200">
+        <nav class="-mb-px flex gap-6">
+            <button type="button" @click="mode = 'single'"
+                    :class="mode === 'single'
+                        ? 'border-indigo-500 text-indigo-600'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'"
+                    class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium transition-colors">
+                Single Template
+            </button>
+            <button type="button" @click="mode = 'restyle'"
+                    :class="mode === 'restyle'
+                        ? 'border-indigo-500 text-indigo-600'
+                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'"
+                    class="whitespace-nowrap border-b-2 py-3 px-1 text-sm font-medium transition-colors">
+                Restyle All
+            </button>
+        </nav>
+    </div>
 
-            <!-- Template type selector -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Template Type</label>
-                <div class="flex gap-2">
-                    <template x-for="t in templateTypes" :key="t.value">
-                        <button type="button"
-                                @click="templateType = t.value; loadPreviewContent()"
-                                :class="templateType === t.value
-                                    ? 'bg-indigo-600 text-white border-indigo-600'
-                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
-                                class="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors"
-                                x-text="t.label">
-                        </button>
-                    </template>
+    <!-- ===================== SINGLE TEMPLATE MODE ===================== -->
+    <template x-if="mode === 'single'">
+        <div class="flex gap-6">
+            <!-- Left column: Chat + Code -->
+            <div class="flex-1 min-w-0 space-y-4">
+
+                <!-- Template type selector -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Template Type</label>
+                    <div class="flex gap-2">
+                        <template x-for="t in templateTypes" :key="t.value">
+                            <button type="button"
+                                    @click="templateType = t.value; loadPreviewContent()"
+                                    :class="templateType === t.value
+                                        ? 'bg-indigo-600 text-white border-indigo-600'
+                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+                                    class="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors"
+                                    x-text="t.label">
+                            </button>
+                        </template>
+                    </div>
+                    <p class="mt-2 text-xs text-gray-400" x-text="templateTypes.find(t => t.value === templateType)?.help"></p>
                 </div>
-                <p class="mt-2 text-xs text-gray-400" x-text="templateTypes.find(t => t.value === templateType)?.help"></p>
+
+                <!-- Preview content selector -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
+                     x-show="templateType === 'page' || templateType === 'article_loop'">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Preview Content</label>
+                    <select x-model="previewContentID" @change="if (generatedHTML) refreshPreview()"
+                            class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                                   focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
+                        <option value="">Sample data (default)</option>
+                        <template x-if="templateType === 'article_loop'">
+                            <option value="__real__">Real published posts</option>
+                        </template>
+                        <template x-for="c in previewContent" :key="c.id">
+                            <option :value="c.id" x-text="c.title + ' (' + c.type + ')'"></option>
+                        </template>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-400">Select an existing page or post to preview the template with real content.</p>
+                </div>
+
+                <!-- Chat messages -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    <div id="chat-messages" class="p-4 space-y-4 max-h-[400px] overflow-y-auto" x-ref="chatArea">
+
+                        <!-- Welcome message -->
+                        <template x-if="messages.length === 0">
+                            <div class="text-center py-8">
+                                <svg class="mx-auto h-12 w-12 text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+                                </svg>
+                                <p class="text-sm text-gray-500">Describe the template you want to build.</p>
+                                <p class="text-xs text-gray-400 mt-1">e.g., "A modern blog post page with a hero section, large title, and clean body text"</p>
+                            </div>
+                        </template>
+
+                        <!-- Message list -->
+                        <template x-for="(msg, idx) in messages" :key="idx">
+                            <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+                                <div :class="msg.role === 'user'
+                                        ? 'bg-indigo-600 text-white rounded-lg rounded-br-sm px-4 py-2 max-w-[80%]'
+                                        : 'bg-gray-100 text-gray-800 rounded-lg rounded-bl-sm px-4 py-2 max-w-[80%]'">
+                                    <p class="text-sm whitespace-pre-wrap" x-text="msg.content"></p>
+                                </div>
+                            </div>
+                        </template>
+
+                        <!-- Loading indicator -->
+                        <template x-if="loading">
+                            <div class="flex justify-start">
+                                <div class="bg-gray-100 rounded-lg rounded-bl-sm px-4 py-3">
+                                    <div class="flex items-center gap-2">
+                                        <svg class="animate-spin h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                        </svg>
+                                        <span class="text-sm text-gray-500">Generating template...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Chat input -->
+                    <div class="border-t border-gray-200 p-4">
+                        <form @submit.prevent="sendMessage()" class="flex gap-2">
+                            <input type="text" x-model="prompt" :disabled="loading"
+                                   class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                                          placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none
+                                          disabled:bg-gray-50 disabled:text-gray-400"
+                                   placeholder="Describe your template or request changes...">
+                            <button type="submit" :disabled="loading || !prompt.trim()"
+                                    class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500
+                                           transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                Send
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Generated code viewer -->
+                <template x-if="generatedHTML">
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+                            <h3 class="text-sm font-medium text-gray-700">Generated Template</h3>
+                            <div class="flex gap-2">
+                                <button type="button" @click="copyCode(generatedHTML)"
+                                        class="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-200 hover:bg-gray-100 transition-colors">
+                                    <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="p-4 max-h-[400px] overflow-auto">
+                            <pre class="text-xs font-mono text-gray-800 whitespace-pre-wrap" x-text="generatedHTML"></pre>
+                        </div>
+
+                        <!-- Validation status -->
+                        <div class="px-4 py-2 border-t border-gray-200" :class="validationOk ? 'bg-green-50' : 'bg-red-50'">
+                            <template x-if="validationOk">
+                                <p class="text-xs text-green-700 flex items-center gap-1">
+                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                                    </svg>
+                                    Template compiles successfully as a Go template.
+                                </p>
+                            </template>
+                            <template x-if="!validationOk">
+                                <p class="text-xs text-red-700" x-text="'Template error: ' + validationError"></p>
+                            </template>
+                        </div>
+                    </div>
+                </template>
             </div>
 
-            <!-- Preview content selector -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
-                 x-show="templateType === 'page' || templateType === 'article_loop'">
+            <!-- Right column: Preview + Save -->
+            <div class="w-96 flex-shrink-0 space-y-4">
+
+                <!-- Live Preview -->
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+                        <h3 class="text-sm font-medium text-gray-700">Live Preview</h3>
+                        <button type="button" @click="refreshPreview()" :disabled="!generatedHTML"
+                                class="text-xs text-indigo-600 hover:text-indigo-800 disabled:text-gray-400 disabled:cursor-not-allowed">
+                            Refresh
+                        </button>
+                    </div>
+                    <div id="preview-container" class="min-h-[300px]">
+                        <template x-if="!previewHTML">
+                            <div class="flex items-center justify-center h-[300px] text-sm text-gray-400">
+                                Preview appears after AI generates a template.
+                            </div>
+                        </template>
+                        <template x-if="previewHTML">
+                            <iframe :srcdoc="previewHTML" class="w-full h-[500px] border-0"></iframe>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Save as Template -->
+                <template x-if="generatedHTML && validationOk">
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-4">
+                        <h3 class="text-sm font-semibold text-gray-900">Save as Template</h3>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Template Name</label>
+                            <input type="text" x-model="saveName"
+                                   class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                                          placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                                   placeholder="e.g., Modern Blog Page">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Type</label>
+                            <p class="text-sm text-gray-600" x-text="templateTypes.find(t => t.value === templateType)?.label"></p>
+                        </div>
+
+                        <button type="button" @click="saveTemplate()" :disabled="!saveName.trim() || saving"
+                                class="w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500
+                                       transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span x-text="saving ? 'Saving...' : 'Save Template'"></span>
+                        </button>
+
+                        <template x-if="saveSuccess">
+                            <p class="text-xs text-green-700 bg-green-50 rounded p-2">Template saved successfully! Go to the templates list to activate it.</p>
+                        </template>
+                        <template x-if="saveError">
+                            <p class="text-xs text-red-700 bg-red-50 rounded p-2" x-text="saveError"></p>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </template>
+
+    <!-- ===================== RESTYLE ALL MODE ===================== -->
+    <template x-if="mode === 'restyle'">
+        <div class="space-y-5">
+
+            <!-- Design Brief panel -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200 cursor-pointer"
+                     @click="themesPanelOpen = !themesPanelOpen">
+                    <div class="flex items-center gap-2">
+                        <h3 class="text-sm font-medium text-gray-700">Design Brief</h3>
+                        <template x-if="activeTheme">
+                            <span class="inline-flex items-center rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700"
+                                  x-text="activeTheme.name"></span>
+                        </template>
+                    </div>
+                    <svg :class="themesPanelOpen ? 'rotate-180' : ''" class="h-4 w-4 text-gray-400 transition-transform"
+                         fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                    </svg>
+                </div>
+
+                <div x-show="themesPanelOpen" x-transition class="p-4 space-y-4">
+                    <p class="text-xs text-gray-500">
+                        A design brief describes the visual language for your entire site &mdash; colors, typography, mood, spacing.
+                        It is injected into every template generation prompt to ensure all templates match.
+                    </p>
+
+                    <!-- Saved themes list -->
+                    <div class="space-y-2" x-show="themes.length > 0">
+                        <label class="block text-xs font-medium text-gray-700">Saved Themes</label>
+                        <div class="flex flex-wrap gap-2">
+                            <template x-for="theme in themes" :key="theme.id">
+                                <button type="button"
+                                        @click="selectTheme(theme)"
+                                        :class="selectedThemeID === theme.id
+                                            ? 'bg-indigo-600 text-white border-indigo-600'
+                                            : theme.is_active
+                                                ? 'bg-indigo-50 text-indigo-700 border-indigo-300 hover:bg-indigo-100'
+                                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+                                        class="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors">
+                                    <span x-text="theme.name"></span>
+                                    <template x-if="theme.is_active">
+                                        <svg class="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                                        </svg>
+                                    </template>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Style prompt textarea -->
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Style Description</label>
+                        <textarea x-model="styleBrief" rows="5"
+                                  class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                                         placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                                  placeholder="e.g., Clean minimalist design with a dark navy (#1a1a2e) header and footer, warm cream (#faf3e0) backgrounds, Inter for headings, system-ui for body. Generous whitespace. Subtle hover transitions. Accent color: coral (#ff6b6b)."></textarea>
+                    </div>
+
+                    <!-- Theme name + action buttons -->
+                    <div class="flex items-end gap-3">
+                        <div class="flex-1">
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Theme Name</label>
+                            <input type="text" x-model="themeName"
+                                   class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                                          placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                                   placeholder="e.g., Warm Minimalist">
+                        </div>
+                        <div class="flex gap-2 flex-shrink-0">
+                            <button type="button" @click="saveTheme()"
+                                    :disabled="!themeName.trim() || !styleBrief.trim() || themeSaving"
+                                    class="rounded-md bg-white px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300
+                                           shadow-sm hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                <span x-text="selectedThemeID ? 'Update' : 'Save'"></span>
+                            </button>
+                            <template x-if="selectedThemeID">
+                                <button type="button" @click="activateTheme()"
+                                        :disabled="themeSaving"
+                                        :class="isSelectedThemeActive()
+                                            ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'
+                                            : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-500'"
+                                        class="rounded-md px-3 py-2 text-sm font-medium border shadow-sm
+                                               transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <span x-text="isSelectedThemeActive() ? 'Deactivate' : 'Activate'"></span>
+                                </button>
+                            </template>
+                            <template x-if="selectedThemeID">
+                                <button type="button" @click="deleteTheme()"
+                                        :disabled="themeSaving || isSelectedThemeActive()"
+                                        class="rounded-md bg-white px-3 py-2 text-sm font-medium text-red-600 border border-red-200
+                                               shadow-sm hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title="Cannot delete the active theme">
+                                    Delete
+                                </button>
+                            </template>
+                            <button type="button" @click="clearThemeSelection()"
+                                    class="rounded-md bg-white px-2 py-2 text-sm text-gray-400 border border-gray-200
+                                           shadow-sm hover:bg-gray-50 hover:text-gray-600 transition-colors"
+                                    title="Clear selection">
+                                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Theme status messages -->
+                    <template x-if="themeMessage">
+                        <p class="text-xs rounded p-2"
+                           :class="themeMessageType === 'error' ? 'text-red-700 bg-red-50' : 'text-green-700 bg-green-50'"
+                           x-text="themeMessage"></p>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Preview content selector for restyle -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Preview Content</label>
-                <select x-model="previewContentID" @change="if (generatedHTML) refreshPreview()"
+                <select x-model="restyleContentID"
                         class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
                                focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none">
                     <option value="">Sample data (default)</option>
-                    <template x-if="templateType === 'article_loop'">
-                        <option value="__real__">Real published posts</option>
-                    </template>
+                    <option value="__real__">Real published content</option>
                     <template x-for="c in previewContent" :key="c.id">
                         <option :value="c.id" x-text="c.title + ' (' + c.type + ')'"></option>
                     </template>
                 </select>
-                <p class="mt-1 text-xs text-gray-400">Select an existing page or post to preview the template with real content.</p>
+                <p class="mt-1 text-xs text-gray-400">Content used for page and article loop previews during restyle.</p>
             </div>
 
-            <!-- Chat messages -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                <div id="chat-messages" class="p-4 space-y-4 max-h-[400px] overflow-y-auto" x-ref="chatArea">
+            <!-- Restyle prompt + trigger -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Restyle Prompt</label>
+                    <input type="text" x-model="restylePrompt"
+                           class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                                  placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                           placeholder="e.g., Modern blog with clean typography and warm colors">
+                    <p class="mt-1 text-xs text-gray-400">
+                        This prompt applies to all 4 templates. The active design brief (if any) is automatically included.
+                    </p>
+                </div>
 
-                    <!-- Welcome message -->
-                    <template x-if="messages.length === 0">
-                        <div class="text-center py-8">
-                            <svg class="mx-auto h-12 w-12 text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
-                            </svg>
-                            <p class="text-sm text-gray-500">Describe the template you want to build.</p>
-                            <p class="text-xs text-gray-400 mt-1">e.g., "A modern blog post page with a hero section, large title, and clean body text"</p>
-                        </div>
-                    </template>
+                <button type="button" @click="restyleAll()"
+                        :disabled="restyleRunning || !restylePrompt.trim()"
+                        class="w-full rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-500
+                               transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    <span x-text="restyleRunning ? 'Generating...' : 'Restyle All Templates'"></span>
+                </button>
+            </div>
 
-                    <!-- Message list -->
-                    <template x-for="(msg, idx) in messages" :key="idx">
-                        <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
-                            <div :class="msg.role === 'user'
-                                    ? 'bg-indigo-600 text-white rounded-lg rounded-br-sm px-4 py-2 max-w-[80%]'
-                                    : 'bg-gray-100 text-gray-800 rounded-lg rounded-bl-sm px-4 py-2 max-w-[80%]'">
-                                <p class="text-sm whitespace-pre-wrap" x-text="msg.content"></p>
-                            </div>
-                        </div>
-                    </template>
-
-                    <!-- Loading indicator -->
-                    <template x-if="loading">
-                        <div class="flex justify-start">
-                            <div class="bg-gray-100 rounded-lg rounded-bl-sm px-4 py-3">
-                                <div class="flex items-center gap-2">
-                                    <svg class="animate-spin h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                                    </svg>
-                                    <span class="text-sm text-gray-500">Generating template...</span>
+            <!-- Progress steps -->
+            <template x-if="restyleRunning || restyleResults.header || restyleResults.footer || restyleResults.page || restyleResults.article_loop">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                    <h3 class="text-sm font-medium text-gray-700 mb-3">Generation Progress</h3>
+                    <div class="space-y-2">
+                        <template x-for="step in restyleSteps" :key="step.type">
+                            <div class="flex items-center gap-3">
+                                <!-- Status icon -->
+                                <div class="flex-shrink-0">
+                                    <template x-if="restyleStepStatus(step.type) === 'done'">
+                                        <svg class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                        </svg>
+                                    </template>
+                                    <template x-if="restyleStepStatus(step.type) === 'running'">
+                                        <svg class="animate-spin h-5 w-5 text-indigo-500" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                        </svg>
+                                    </template>
+                                    <template x-if="restyleStepStatus(step.type) === 'error'">
+                                        <svg class="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                        </svg>
+                                    </template>
+                                    <template x-if="restyleStepStatus(step.type) === 'pending'">
+                                        <div class="h-5 w-5 rounded-full border-2 border-gray-300"></div>
+                                    </template>
                                 </div>
+                                <!-- Label -->
+                                <span class="text-sm"
+                                      :class="restyleStepStatus(step.type) === 'running' ? 'text-indigo-700 font-medium' :
+                                              restyleStepStatus(step.type) === 'done' ? 'text-green-700' :
+                                              restyleStepStatus(step.type) === 'error' ? 'text-red-700' : 'text-gray-400'"
+                                      x-text="step.label"></span>
+                                <!-- Error message -->
+                                <template x-if="restyleErrors[step.type]">
+                                    <span class="text-xs text-red-500" x-text="restyleErrors[step.type]"></span>
+                                </template>
                             </div>
-                        </div>
-                    </template>
+                        </template>
+                    </div>
                 </div>
+            </template>
 
-                <!-- Chat input -->
-                <div class="border-t border-gray-200 p-4">
-                    <form @submit.prevent="sendMessage()" class="flex gap-2">
-                        <input type="text" x-model="prompt" :disabled="loading"
-                               class="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
-                                      placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none
-                                      disabled:bg-gray-50 disabled:text-gray-400"
-                               placeholder="Describe your template or request changes...">
-                        <button type="submit" :disabled="loading || !prompt.trim()"
-                                class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500
-                                       transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                            Send
-                        </button>
-                    </form>
-                </div>
-            </div>
-
-            <!-- Generated code viewer -->
-            <template x-if="generatedHTML">
+            <!-- Generated templates viewer (tabbed) -->
+            <template x-if="hasAnyRestyleResult()">
                 <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
                     <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
-                        <h3 class="text-sm font-medium text-gray-700">Generated Template</h3>
-                        <div class="flex gap-2">
-                            <button type="button" @click="copyCode()"
-                                    class="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-200 hover:bg-gray-100 transition-colors">
-                                <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+                        <div class="flex gap-1">
+                            <template x-for="step in restyleSteps" :key="step.type">
+                                <button type="button" @click="restyleViewTab = step.type"
+                                        :disabled="!restyleResults[step.type]"
+                                        :class="restyleViewTab === step.type
+                                            ? 'bg-indigo-600 text-white border-indigo-600'
+                                            : restyleResults[step.type]
+                                                ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                                : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'"
+                                        class="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
+                                        x-text="step.label">
+                                </button>
+                            </template>
+                        </div>
+                        <button type="button" @click="copyCode(restyleResults[restyleViewTab] || '')"
+                                :disabled="!restyleResults[restyleViewTab]"
+                                class="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded border border-gray-200
+                                       hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            <span x-text="copied ? 'Copied!' : 'Copy'"></span>
+                        </button>
+                    </div>
+                    <div class="p-4 max-h-[300px] overflow-auto">
+                        <pre class="text-xs font-mono text-gray-800 whitespace-pre-wrap"
+                             x-text="restyleResults[restyleViewTab] || 'Not generated yet.'"></pre>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Combined Preview -->
+            <template x-if="hasAllRestyleResults()">
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+                        <div class="flex gap-1">
+                            <button type="button" @click="restylePreviewTab = 'page'"
+                                    :class="restylePreviewTab === 'page'
+                                        ? 'bg-indigo-600 text-white border-indigo-600'
+                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+                                    class="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors">
+                                Page View
+                            </button>
+                            <button type="button" @click="restylePreviewTab = 'blog'"
+                                    :class="restylePreviewTab === 'blog'
+                                        ? 'bg-indigo-600 text-white border-indigo-600'
+                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+                                    class="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors">
+                                Blog View
                             </button>
                         </div>
+                        <button type="button" @click="refreshRestylePreview()"
+                                :disabled="restylePreviewLoading"
+                                class="text-xs text-indigo-600 hover:text-indigo-800 disabled:text-gray-400">
+                            <span x-text="restylePreviewLoading ? 'Loading...' : 'Refresh Preview'"></span>
+                        </button>
                     </div>
-                    <div class="p-4 max-h-[400px] overflow-auto">
-                        <pre class="text-xs font-mono text-gray-800 whitespace-pre-wrap" x-text="generatedHTML"></pre>
-                    </div>
-
-                    <!-- Validation status -->
-                    <div class="px-4 py-2 border-t border-gray-200" :class="validationOk ? 'bg-green-50' : 'bg-red-50'">
-                        <template x-if="validationOk">
-                            <p class="text-xs text-green-700 flex items-center gap-1">
-                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                                </svg>
-                                Template compiles successfully as a Go template.
-                            </p>
+                    <div class="min-h-[400px]">
+                        <template x-if="restylePreviewTab === 'page'">
+                            <div>
+                                <template x-if="restylePagePreview">
+                                    <iframe :srcdoc="restylePagePreview" class="w-full h-[600px] border-0"></iframe>
+                                </template>
+                                <template x-if="!restylePagePreview">
+                                    <div class="flex items-center justify-center h-[400px] text-sm text-gray-400">
+                                        Click "Refresh Preview" to see the combined page view.
+                                    </div>
+                                </template>
+                            </div>
                         </template>
-                        <template x-if="!validationOk">
-                            <p class="text-xs text-red-700" x-text="'Template error: ' + validationError"></p>
+                        <template x-if="restylePreviewTab === 'blog'">
+                            <div>
+                                <template x-if="restyleBlogPreview">
+                                    <iframe :srcdoc="restyleBlogPreview" class="w-full h-[600px] border-0"></iframe>
+                                </template>
+                                <template x-if="!restyleBlogPreview">
+                                    <div class="flex items-center justify-center h-[400px] text-sm text-gray-400">
+                                        Click "Refresh Preview" to see the combined blog view.
+                                    </div>
+                                </template>
+                            </div>
                         </template>
                     </div>
                 </div>
             </template>
-        </div>
 
-        <!-- Right column: Preview + Save -->
-        <div class="w-96 flex-shrink-0 space-y-4">
-
-            <!-- Live Preview -->
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
-                    <h3 class="text-sm font-medium text-gray-700">Live Preview</h3>
-                    <button type="button" @click="refreshPreview()" :disabled="!generatedHTML"
-                            class="text-xs text-indigo-600 hover:text-indigo-800 disabled:text-gray-400 disabled:cursor-not-allowed">
-                        Refresh
-                    </button>
-                </div>
-                <div id="preview-container" class="min-h-[300px]">
-                    <template x-if="!previewHTML">
-                        <div class="flex items-center justify-center h-[300px] text-sm text-gray-400">
-                            Preview appears after AI generates a template.
-                        </div>
-                    </template>
-                    <template x-if="previewHTML">
-                        <iframe :srcdoc="previewHTML" class="w-full h-[500px] border-0"></iframe>
-                    </template>
-                </div>
-            </div>
-
-            <!-- Save as Template -->
-            <template x-if="generatedHTML && validationOk">
+            <!-- Save All -->
+            <template x-if="hasAllRestyleResults()">
                 <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-4">
-                    <h3 class="text-sm font-semibold text-gray-900">Save as Template</h3>
+                    <h3 class="text-sm font-semibold text-gray-900">Save All Templates</h3>
+                    <p class="text-xs text-gray-500">Saves all 4 generated templates to the template library. You can then activate them from the templates list.</p>
 
                     <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Template Name</label>
-                        <input type="text" x-model="saveName"
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Name Prefix</label>
+                        <input type="text" x-model="restyleSavePrefix"
                                class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
                                       placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
-                               placeholder="e.g., Modern Blog Page">
+                               placeholder="e.g., Warm Minimalist">
+                        <p class="mt-1 text-xs text-gray-400">
+                            Templates will be named: <span class="font-medium" x-text="(restyleSavePrefix || 'Theme') + ' — Header'"></span>,
+                            <span class="font-medium" x-text="(restyleSavePrefix || 'Theme') + ' — Footer'"></span>, etc.
+                        </p>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-medium text-gray-700 mb-1">Type</label>
-                        <p class="text-sm text-gray-600" x-text="templateTypes.find(t => t.value === templateType)?.label"></p>
-                    </div>
-
-                    <button type="button" @click="saveTemplate()" :disabled="!saveName.trim() || saving"
-                            class="w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-500
+                    <button type="button" @click="saveAllTemplates()"
+                            :disabled="!restyleSavePrefix.trim() || restyleSaving"
+                            class="w-full rounded-md bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-indigo-500
                                    transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                        <span x-text="saving ? 'Saving...' : 'Save Template'"></span>
+                        <span x-text="restyleSaving ? 'Saving...' : 'Save All 4 Templates'"></span>
                     </button>
 
-                    <template x-if="saveSuccess">
-                        <p class="text-xs text-green-700 bg-green-50 rounded p-2">Template saved successfully! Go to the templates list to activate it.</p>
+                    <template x-if="restyleSaveSuccess">
+                        <p class="text-xs text-green-700 bg-green-50 rounded p-2">
+                            All 4 templates saved! Go to the templates list to activate them.
+                        </p>
                     </template>
-                    <template x-if="saveError">
-                        <p class="text-xs text-red-700 bg-red-50 rounded p-2" x-text="saveError"></p>
+                    <template x-if="restyleSaveError">
+                        <p class="text-xs text-red-700 bg-red-50 rounded p-2" x-text="restyleSaveError"></p>
                     </template>
                 </div>
             </template>
         </div>
-    </div>
+    </template>
 </div>
 
 <script>
 function aiTemplateBuilder() {
     return {
-        templateType: 'page',
+        // Mode: 'single' or 'restyle'
+        mode: 'single',
+
+        // ── Shared state ──
         templateTypes: [
             { value: 'header', label: 'Header', help: 'Site header/navigation bar. Variables: {{"{{"}}.SiteName{{"}}"}}, {{"{{"}}.Year{{"}}"}}' },
             { value: 'footer', label: 'Footer', help: 'Site footer. Variables: {{"{{"}}.SiteName{{"}}"}}, {{"{{"}}.Year{{"}}"}}' },
             { value: 'page', label: 'Page', help: 'Full page layout with title, body, featured image, header/footer, and SEO metadata.' },
             { value: 'article_loop', label: 'Article Loop', help: 'Post listing page with a grid/list of posts, each with title, excerpt, image, and date.' }
         ],
+        previewContent: [],
+        copied: false,
+
+        // ── Single template state ──
+        templateType: 'page',
         prompt: '',
         messages: [],
         loading: false,
@@ -229,18 +582,59 @@ function aiTemplateBuilder() {
         validationOk: false,
         validationError: '',
         previewHTML: '',
-        copied: false,
         saveName: '',
         saving: false,
         saveSuccess: false,
         saveError: '',
         previewContentID: '',
-        previewContent: [],
+
+        // ── Restyle All state ──
+        themes: [],
+        activeTheme: null,
+        selectedThemeID: '',
+        styleBrief: '',
+        themeName: '',
+        themeSaving: false,
+        themeMessage: '',
+        themeMessageType: '',
+        themesPanelOpen: true,
+
+        restylePrompt: '',
+        restyleContentID: '',
+        restyleRunning: false,
+        restyleCurrentStep: '',
+        restyleResults: { header: '', footer: '', page: '', article_loop: '' },
+        restyleErrors: { header: '', footer: '', page: '', article_loop: '' },
+        restyleSteps: [
+            { type: 'header', label: 'Header' },
+            { type: 'footer', label: 'Footer' },
+            { type: 'page', label: 'Page' },
+            { type: 'article_loop', label: 'Article Loop' }
+        ],
+        restyleViewTab: 'header',
+        restylePreviewTab: 'page',
+        restylePreviewLoading: false,
+        restylePagePreview: '',
+        restyleBlogPreview: '',
+        restyleSavePrefix: '',
+        restyleSaving: false,
+        restyleSaveSuccess: false,
+        restyleSaveError: '',
 
         init() {
             this.loadPreviewContent();
+            this.loadThemes();
         },
 
+        // ── CSRF helper ──
+        csrfToken() {
+            const el = document.querySelector('[hx-headers]');
+            if (!el) return '';
+            try { return JSON.parse(el.getAttribute('hx-headers'))['X-CSRF-Token']; }
+            catch { return ''; }
+        },
+
+        // ── Preview content ──
         async loadPreviewContent() {
             try {
                 const resp = await fetch('/admin/ai/preview-content');
@@ -251,6 +645,165 @@ function aiTemplateBuilder() {
             }
         },
 
+        getEffectiveContentID() {
+            if (this.previewContentID === '__real__') {
+                const firstPost = this.previewContent.find(c => c.type === 'post');
+                return firstPost ? firstPost.id : '';
+            }
+            return this.previewContentID;
+        },
+
+        getEffectiveRestyleContentID() {
+            if (this.restyleContentID === '__real__') {
+                const firstPost = this.previewContent.find(c => c.type === 'post');
+                return firstPost ? firstPost.id : '';
+            }
+            return this.restyleContentID;
+        },
+
+        // ── Theme management ──
+        async loadThemes() {
+            try {
+                const resp = await fetch('/admin/ai/themes');
+                this.themes = await resp.json();
+                this.activeTheme = this.themes.find(t => t.is_active) || null;
+            } catch (err) {
+                console.warn('Failed to load themes:', err);
+            }
+        },
+
+        selectTheme(theme) {
+            this.selectedThemeID = theme.id;
+            this.themeName = theme.name;
+            this.styleBrief = theme.style_prompt;
+            this.themeMessage = '';
+        },
+
+        clearThemeSelection() {
+            this.selectedThemeID = '';
+            this.themeName = '';
+            this.styleBrief = '';
+            this.themeMessage = '';
+        },
+
+        isSelectedThemeActive() {
+            return this.themes.some(t => t.id === this.selectedThemeID && t.is_active);
+        },
+
+        async saveTheme() {
+            if (!this.themeName.trim() || !this.styleBrief.trim()) return;
+            this.themeSaving = true;
+            this.themeMessage = '';
+
+            try {
+                const csrf = this.csrfToken();
+                const formData = new FormData();
+                formData.append('name', this.themeName);
+                formData.append('style_prompt', this.styleBrief);
+
+                if (this.selectedThemeID) {
+                    // Update existing
+                    const resp = await fetch(`/admin/ai/themes/${this.selectedThemeID}`, {
+                        method: 'PUT',
+                        headers: { 'X-CSRF-Token': csrf },
+                        body: formData
+                    });
+                    const data = await resp.json();
+                    if (data.error) {
+                        this.themeMessage = data.error;
+                        this.themeMessageType = 'error';
+                    } else {
+                        this.themeMessage = 'Theme updated.';
+                        this.themeMessageType = 'success';
+                        await this.loadThemes();
+                    }
+                } else {
+                    // Create new
+                    const resp = await fetch('/admin/ai/themes', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-Token': csrf },
+                        body: formData
+                    });
+                    const data = await resp.json();
+                    if (data.error) {
+                        this.themeMessage = data.error;
+                        this.themeMessageType = 'error';
+                    } else {
+                        this.themeMessage = 'Theme saved.';
+                        this.themeMessageType = 'success';
+                        this.selectedThemeID = data.id;
+                        await this.loadThemes();
+                    }
+                }
+            } catch (err) {
+                this.themeMessage = 'Network error: ' + err.message;
+                this.themeMessageType = 'error';
+            } finally {
+                this.themeSaving = false;
+            }
+        },
+
+        async activateTheme() {
+            if (!this.selectedThemeID) return;
+            this.themeSaving = true;
+            this.themeMessage = '';
+
+            try {
+                const csrf = this.csrfToken();
+                const isActive = this.isSelectedThemeActive();
+                const url = `/admin/ai/themes/${this.selectedThemeID}/${isActive ? 'deactivate' : 'activate'}`;
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-Token': csrf }
+                });
+                const data = await resp.json();
+                if (data.error) {
+                    this.themeMessage = data.error;
+                    this.themeMessageType = 'error';
+                } else {
+                    this.themeMessage = isActive ? 'Theme deactivated.' : 'Theme activated.';
+                    this.themeMessageType = 'success';
+                    await this.loadThemes();
+                }
+            } catch (err) {
+                this.themeMessage = 'Network error: ' + err.message;
+                this.themeMessageType = 'error';
+            } finally {
+                this.themeSaving = false;
+            }
+        },
+
+        async deleteTheme() {
+            if (!this.selectedThemeID || this.isSelectedThemeActive()) return;
+            if (!confirm('Delete this theme? This cannot be undone.')) return;
+            this.themeSaving = true;
+            this.themeMessage = '';
+
+            try {
+                const csrf = this.csrfToken();
+                const resp = await fetch(`/admin/ai/themes/${this.selectedThemeID}`, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-Token': csrf }
+                });
+                const data = await resp.json();
+                if (data.error) {
+                    this.themeMessage = data.error;
+                    this.themeMessageType = 'error';
+                } else {
+                    this.themeMessage = 'Theme deleted.';
+                    this.themeMessageType = 'success';
+                    this.clearThemeSelection();
+                    await this.loadThemes();
+                }
+            } catch (err) {
+                this.themeMessage = 'Network error: ' + err.message;
+                this.themeMessageType = 'error';
+            } finally {
+                this.themeSaving = false;
+            }
+        },
+
+        // ── Single template methods ──
         async sendMessage() {
             const text = this.prompt.trim();
             if (!text || this.loading) return;
@@ -266,10 +819,7 @@ function aiTemplateBuilder() {
             });
 
             try {
-                const csrfToken = document.querySelector('[hx-headers]')?.getAttribute('hx-headers');
-                const csrf = csrfToken ? JSON.parse(csrfToken)['X-CSRF-Token'] : '';
-
-                // Build conversation context for the AI
+                const csrf = this.csrfToken();
                 const chatHistory = this.messages.map(m => m.role + ': ' + m.content).join('\n\n');
 
                 const formData = new FormData();
@@ -279,7 +829,6 @@ function aiTemplateBuilder() {
                 if (this.generatedHTML) {
                     formData.append('current_html', this.generatedHTML);
                 }
-                // Include selected content for real-data preview.
                 const contentID = this.getEffectiveContentID();
                 if (contentID) {
                     formData.append('content_id', contentID);
@@ -312,24 +861,10 @@ function aiTemplateBuilder() {
             }
         },
 
-        // getEffectiveContentID returns the content ID to use for preview.
-        // For article_loop with "__real__" selected, it uses the first published
-        // post as a signal to the backend to use real data.
-        getEffectiveContentID() {
-            if (this.previewContentID === '__real__') {
-                // For article_loop: signal "use real posts" by picking the first post
-                const firstPost = this.previewContent.find(c => c.type === 'post');
-                return firstPost ? firstPost.id : '';
-            }
-            return this.previewContentID;
-        },
-
         async refreshPreview() {
             if (!this.generatedHTML) return;
             try {
-                const csrfToken = document.querySelector('[hx-headers]')?.getAttribute('hx-headers');
-                const csrf = csrfToken ? JSON.parse(csrfToken)['X-CSRF-Token'] : '';
-
+                const csrf = this.csrfToken();
                 const formData = new FormData();
                 formData.append('html_content', this.generatedHTML);
                 formData.append('template_type', this.templateType);
@@ -349,8 +884,8 @@ function aiTemplateBuilder() {
             }
         },
 
-        copyCode() {
-            navigator.clipboard.writeText(this.generatedHTML);
+        copyCode(html) {
+            navigator.clipboard.writeText(html);
             this.copied = true;
             setTimeout(() => this.copied = false, 2000);
         },
@@ -362,9 +897,7 @@ function aiTemplateBuilder() {
             this.saveError = '';
 
             try {
-                const csrfToken = document.querySelector('[hx-headers]')?.getAttribute('hx-headers');
-                const csrf = csrfToken ? JSON.parse(csrfToken)['X-CSRF-Token'] : '';
-
+                const csrf = this.csrfToken();
                 const formData = new FormData();
                 formData.append('name', this.saveName);
                 formData.append('type', this.templateType);
@@ -388,6 +921,174 @@ function aiTemplateBuilder() {
                 this.saveError = 'Network error: ' + err.message;
             } finally {
                 this.saving = false;
+            }
+        },
+
+        // ── Restyle All methods ──
+        restyleStepStatus(type) {
+            if (this.restyleErrors[type]) return 'error';
+            if (this.restyleResults[type]) return 'done';
+            if (this.restyleCurrentStep === type) return 'running';
+            return 'pending';
+        },
+
+        hasAnyRestyleResult() {
+            return this.restyleResults.header || this.restyleResults.footer ||
+                   this.restyleResults.page || this.restyleResults.article_loop;
+        },
+
+        hasAllRestyleResults() {
+            return this.restyleResults.header && this.restyleResults.footer &&
+                   this.restyleResults.page && this.restyleResults.article_loop;
+        },
+
+        async restyleAll() {
+            if (this.restyleRunning || !this.restylePrompt.trim()) return;
+
+            this.restyleRunning = true;
+            this.restyleResults = { header: '', footer: '', page: '', article_loop: '' };
+            this.restyleErrors = { header: '', footer: '', page: '', article_loop: '' };
+            this.restylePagePreview = '';
+            this.restyleBlogPreview = '';
+            this.restyleSaveSuccess = false;
+            this.restyleSaveError = '';
+            this.restyleViewTab = 'header';
+
+            const csrf = this.csrfToken();
+            const contentID = this.getEffectiveRestyleContentID();
+            const order = ['header', 'footer', 'page', 'article_loop'];
+
+            // Build context of previously generated templates to feed into each step.
+            let context = {};
+
+            for (const tmplType of order) {
+                this.restyleCurrentStep = tmplType;
+
+                try {
+                    const formData = new FormData();
+                    formData.append('prompt', this.restylePrompt);
+                    formData.append('template_type', tmplType);
+
+                    // Build context string so the AI sees previously generated templates.
+                    let contextParts = [];
+                    for (const prev of order) {
+                        if (prev === tmplType) break;
+                        if (context[prev]) {
+                            contextParts.push(`Previously generated ${prev} template:\n${context[prev]}`);
+                        }
+                    }
+                    if (contextParts.length > 0) {
+                        formData.append('chat_history', 'user: ' + this.restylePrompt + '\n\n' + contextParts.join('\n\n'));
+                    }
+
+                    if (contentID) {
+                        formData.append('content_id', contentID);
+                    }
+
+                    const resp = await fetch('/admin/ai/generate-template', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-Token': csrf },
+                        body: formData
+                    });
+
+                    const data = await resp.json();
+
+                    if (data.error) {
+                        this.restyleErrors[tmplType] = data.error;
+                    } else if (!data.valid) {
+                        this.restyleErrors[tmplType] = data.validation_error || 'Template failed validation.';
+                    } else {
+                        this.restyleResults[tmplType] = data.html;
+                        context[tmplType] = data.html;
+                    }
+                } catch (err) {
+                    this.restyleErrors[tmplType] = 'Network error: ' + err.message;
+                }
+
+                // Stop if this step errored — no point generating downstream.
+                if (this.restyleErrors[tmplType]) break;
+            }
+
+            this.restyleCurrentStep = '';
+            this.restyleRunning = false;
+
+            // Auto-refresh combined preview if all 4 succeeded.
+            if (this.hasAllRestyleResults()) {
+                await this.refreshRestylePreview();
+            }
+        },
+
+        async refreshRestylePreview() {
+            if (!this.hasAllRestyleResults()) return;
+            this.restylePreviewLoading = true;
+
+            try {
+                const csrf = this.csrfToken();
+                const contentID = this.getEffectiveRestyleContentID();
+
+                const resp = await fetch('/admin/ai/restyle-preview', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-Token': csrf,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        header_html: this.restyleResults.header,
+                        footer_html: this.restyleResults.footer,
+                        page_html: this.restyleResults.page,
+                        article_loop_html: this.restyleResults.article_loop,
+                        content_id: contentID
+                    })
+                });
+
+                const data = await resp.json();
+                if (data.error) {
+                    console.error('Restyle preview error:', data.error);
+                } else {
+                    this.restylePagePreview = data.page_preview || '';
+                    this.restyleBlogPreview = data.article_loop_preview || '';
+                }
+            } catch (err) {
+                console.error('Restyle preview failed:', err);
+            } finally {
+                this.restylePreviewLoading = false;
+            }
+        },
+
+        async saveAllTemplates() {
+            if (!this.restyleSavePrefix.trim() || !this.hasAllRestyleResults() || this.restyleSaving) return;
+            this.restyleSaving = true;
+            this.restyleSaveSuccess = false;
+            this.restyleSaveError = '';
+
+            const csrf = this.csrfToken();
+            const prefix = this.restyleSavePrefix.trim();
+            const typeLabels = { header: 'Header', footer: 'Footer', page: 'Page', article_loop: 'Article Loop' };
+
+            try {
+                for (const tmplType of ['header', 'footer', 'page', 'article_loop']) {
+                    const formData = new FormData();
+                    formData.append('name', prefix + ' \u2014 ' + typeLabels[tmplType]);
+                    formData.append('type', tmplType);
+                    formData.append('html_content', this.restyleResults[tmplType]);
+
+                    const resp = await fetch('/admin/ai/save-template', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-Token': csrf },
+                        body: formData
+                    });
+
+                    const data = await resp.json();
+                    if (data.error) {
+                        this.restyleSaveError = `Failed to save ${typeLabels[tmplType]}: ${data.error}`;
+                        return;
+                    }
+                }
+                this.restyleSaveSuccess = true;
+            } catch (err) {
+                this.restyleSaveError = 'Network error: ' + err.message;
+            } finally {
+                this.restyleSaving = false;
             }
         }
     };

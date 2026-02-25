@@ -51,40 +51,42 @@ type AIConfig struct {
 
 // Admin groups all admin panel HTTP handlers and their dependencies.
 type Admin struct {
-	renderer      *render.Renderer
-	sessions      *session.Store
-	contentStore  *store.ContentStore
-	userStore     *store.UserStore
-	templateStore *store.TemplateStore
-	mediaStore    *store.MediaStore
-	variantStore  *store.VariantStore
-	revisionStore *store.RevisionStore
-	storageClient *storage.Client
-	engine        *engine.Engine
-	pageCache     *cache.PageCache
-	cacheLog      *store.CacheLogStore
-	aiRegistry    *ai.Registry
-	aiConfig      *AIConfig
+	renderer       *render.Renderer
+	sessions       *session.Store
+	contentStore   *store.ContentStore
+	userStore      *store.UserStore
+	templateStore  *store.TemplateStore
+	mediaStore     *store.MediaStore
+	variantStore   *store.VariantStore
+	revisionStore  *store.RevisionStore
+	themeStore     *store.DesignThemeStore
+	storageClient  *storage.Client
+	engine         *engine.Engine
+	pageCache      *cache.PageCache
+	cacheLog       *store.CacheLogStore
+	aiRegistry     *ai.Registry
+	aiConfig       *AIConfig
 }
 
 // NewAdmin creates a new Admin handler group with the given dependencies.
 // storageClient, mediaStore, and variantStore may be nil if S3 is not configured.
-func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, mediaStore *store.MediaStore, variantStore *store.VariantStore, revisionStore *store.RevisionStore, storageClient *storage.Client, eng *engine.Engine, pageCache *cache.PageCache, cacheLog *store.CacheLogStore, aiRegistry *ai.Registry, aiCfg *AIConfig) *Admin {
+func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, mediaStore *store.MediaStore, variantStore *store.VariantStore, revisionStore *store.RevisionStore, themeStore *store.DesignThemeStore, storageClient *storage.Client, eng *engine.Engine, pageCache *cache.PageCache, cacheLog *store.CacheLogStore, aiRegistry *ai.Registry, aiCfg *AIConfig) *Admin {
 	return &Admin{
-		renderer:      renderer,
-		sessions:      sessions,
-		contentStore:  contentStore,
-		userStore:     userStore,
-		templateStore: templateStore,
-		mediaStore:    mediaStore,
-		variantStore:  variantStore,
-		revisionStore: revisionStore,
-		storageClient: storageClient,
-		engine:        eng,
-		pageCache:     pageCache,
-		cacheLog:      cacheLog,
-		aiRegistry:    aiRegistry,
-		aiConfig:      aiCfg,
+		renderer:       renderer,
+		sessions:       sessions,
+		contentStore:   contentStore,
+		userStore:      userStore,
+		templateStore:  templateStore,
+		mediaStore:     mediaStore,
+		variantStore:   variantStore,
+		revisionStore:  revisionStore,
+		themeStore:     themeStore,
+		storageClient:  storageClient,
+		engine:         eng,
+		pageCache:      pageCache,
+		cacheLog:       cacheLog,
+		aiRegistry:     aiRegistry,
+		aiConfig:       aiCfg,
 	}
 }
 
