@@ -201,8 +201,8 @@ function aiTemplateBuilder() {
         templateTypes: [
             { value: 'header', label: 'Header', help: 'Site header/navigation bar. Variables: {{"{{"}}.SiteName{{"}}"}}, {{"{{"}}.Year{{"}}"}}' },
             { value: 'footer', label: 'Footer', help: 'Site footer. Variables: {{"{{"}}.SiteName{{"}}"}}, {{"{{"}}.Year{{"}}"}}' },
-            { value: 'page', label: 'Page', help: 'Full page layout. Variables: {{"{{"}}.Title{{"}}"}}, {{"{{"}}.Body{{"}}"}}, {{"{{"}}.Header{{"}}"}}, {{"{{"}}.Footer{{"}}"}}, {{"{{"}}.Excerpt{{"}}"}}, {{"{{"}}.MetaDescription{{"}}"}}, {{"{{"}}.FeaturedImageURL{{"}}"}}, {{"{{"}}.SiteName{{"}}"}}, {{"{{"}}.Year{{"}}"}}, {{"{{"}}.Slug{{"}}"}}, {{"{{"}}.PublishedAt{{"}}"}}' },
-            { value: 'article_loop', label: 'Article Loop', help: 'Post listing page. Variables: {{"{{"}}.Title{{"}}"}}, {{"{{"}}.Header{{"}}"}}, {{"{{"}}.Footer{{"}}"}}, {{"{{"}}.SiteName{{"}}"}}, {{"{{"}}.Year{{"}}"}}, {{"{{range .Posts}}"}}{{"{{"}}.Title{{"}}"}}, {{"{{"}}.Slug{{"}}"}}, {{"{{"}}.Excerpt{{"}}"}}, {{"{{"}}.FeaturedImageURL{{"}}"}}, {{"{{"}}.PublishedAt{{"}}"}}{{"{{end}}"}}'}
+            { value: 'page', label: 'Page', help: 'Full page layout. Variables: {{"{{"}}.Title{{"}}"}}, {{"{{"}}.Body{{"}}"}}, {{"{{"}}.Header{{"}}"}}, {{"{{"}}.Footer{{"}}"}}, {{"{{"}}.Excerpt{{"}}"}}, {{"{{"}}.MetaDescription{{"}}"}}, {{"{{"}}.FeaturedImageURL{{"}}"}}, {{"{{"}}.FeaturedImageSrcset{{"}}"}}, {{"{{"}}.FeaturedImageAlt{{"}}"}}, {{"{{"}}.SiteName{{"}}"}}, {{"{{"}}.Year{{"}}"}}, {{"{{"}}.Slug{{"}}"}}, {{"{{"}}.PublishedAt{{"}}"}}' },
+            { value: 'article_loop', label: 'Article Loop', help: 'Post listing page. Variables: {{"{{"}}.Title{{"}}"}}, {{"{{"}}.Header{{"}}"}}, {{"{{"}}.Footer{{"}}"}}, {{"{{"}}.SiteName{{"}}"}}, {{"{{"}}.Year{{"}}"}}, {{"{{range .Posts}}"}}{{"{{"}}.Title{{"}}"}}, {{"{{"}}.Slug{{"}}"}}, {{"{{"}}.Excerpt{{"}}"}}, {{"{{"}}.FeaturedImageURL{{"}}"}}, {{"{{"}}.FeaturedImageSrcset{{"}}"}}, {{"{{"}}.FeaturedImageAlt{{"}}"}}, {{"{{"}}.PublishedAt{{"}}"}}{{"{{end}}"}}'}
         ],
         prompt: '',
         messages: [],
