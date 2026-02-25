@@ -190,6 +190,18 @@
             </div>
         </div>
 
+        <!-- Revision message (only when editing) -->
+        {{if not .Data.IsNew}}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <label for="revision_message" class="block text-sm font-medium text-gray-700 mb-1">Revision Note <span class="text-gray-400 font-normal">(optional)</span></label>
+            <input type="text" id="revision_message" name="revision_message"
+                   class="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm
+                          placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                   placeholder="e.g., Restyle header with new brand colors">
+            <p class="mt-1 text-xs text-gray-400">Briefly describe what changed. If left empty, AI will generate a summary.</p>
+        </div>
+        {{end}}
+
         <!-- Actions -->
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div class="flex items-center justify-end gap-3">
@@ -207,6 +219,75 @@
             </div>
         </div>
     </form>
+
+    <!-- Revision History (only when editing and revisions exist) -->
+    {{if and (not .Data.IsNew) .Data.Revisions}}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6" x-data="{ expandedRev: null }">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-gray-900 uppercase tracking-wider">Revision History</h3>
+            <span class="text-xs text-gray-400">{{len .Data.Revisions}} revision{{if gt (len .Data.Revisions) 1}}s{{end}}</span>
+        </div>
+
+        <div class="space-y-2">
+            {{range .Data.Revisions}}
+            <div class="border border-gray-200 rounded-lg overflow-hidden hover:border-gray-300 transition-colors">
+                <!-- Revision header (always visible) -->
+                <button type="button"
+                        @click="expandedRev = expandedRev === '{{.ID}}' ? null : '{{.ID}}'"
+                        class="w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                            <svg class="h-3.5 w-3.5 text-gray-400 flex-shrink-0 transition-transform duration-200"
+                                 :class="expandedRev === '{{.ID}}' ? 'rotate-90' : ''"
+                                 fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                            </svg>
+                            <span class="text-xs font-medium text-gray-900 truncate">
+                                {{if .RevisionTitle}}{{.RevisionTitle}}{{else}}Revision{{end}}
+                            </span>
+                        </div>
+                        <div class="ml-5.5 mt-0.5">
+                            <span class="text-xs text-gray-400">{{.CreatedAt.Format "Jan 2, 2006 15:04"}}</span>
+                        </div>
+                    </div>
+                </button>
+
+                <!-- Expanded details -->
+                <div x-show="expandedRev === '{{.ID}}'"
+                     x-transition:enter="transition ease-out duration-150"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     class="border-t border-gray-100 px-4 py-3 bg-gray-50 space-y-3">
+
+                    {{if .RevisionLog}}
+                    <div>
+                        <p class="text-xs font-medium text-gray-600 mb-1">Changelog</p>
+                        <div class="text-xs text-gray-700 whitespace-pre-line bg-white rounded p-2 border border-gray-200">{{.RevisionLog}}</div>
+                    </div>
+                    {{end}}
+
+                    <div class="text-xs">
+                        <span class="text-gray-500">Name:</span>
+                        <span class="text-gray-700 ml-1">{{.Name}}</span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <form method="POST" action="/admin/template-revisions/{{.ID}}/restore">
+                            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                            <button type="submit"
+                                    hx-post="/admin/template-revisions/{{.ID}}/restore"
+                                    hx-confirm="Restore this revision? The current template will be saved as a new revision before restoring."
+                                    class="rounded-md bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 transition-colors">
+                                Restore this revision
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
 </div>
 
 <script>

@@ -124,6 +124,10 @@ func New(sessionStore *session.Store, admin *handlers.Admin, auth *handlers.Auth
 			r.Post("/revisions/{revisionID}/restore", admin.RevisionRestore)
 			r.Put("/revisions/{revisionID}/title", admin.RevisionUpdateTitle)
 
+			// Template Revisions
+			r.Post("/template-revisions/{revisionID}/restore", admin.TemplateRevisionRestore)
+			r.Put("/template-revisions/{revisionID}/title", admin.TemplateRevisionUpdateTitle)
+
 			// User management — admin only
 			r.Route("/users", func(r chi.Router) {
 				r.Use(middleware.RequireAdmin)

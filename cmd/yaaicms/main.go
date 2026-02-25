@@ -102,6 +102,7 @@ func main() {
 	mediaStore := store.NewMediaStore(db)
 	variantStore := store.NewVariantStore(db)
 	revisionStore := store.NewRevisionStore(db)
+	templateRevisionStore := store.NewTemplateRevisionStore(db)
 	themeStore := store.NewDesignThemeStore(db)
 
 	// Connect to S3-compatible object storage (optional — app works without it).
@@ -167,7 +168,7 @@ func main() {
 	}
 
 	// Create handler groups with their dependencies.
-	adminHandlers := handlers.NewAdmin(renderer, sessionStore, contentStore, userStore, templateStore, mediaStore, variantStore, revisionStore, themeStore, storageClient, eng, pageCache, cacheLogStore, aiRegistry, aiCfg)
+	adminHandlers := handlers.NewAdmin(renderer, sessionStore, contentStore, userStore, templateStore, mediaStore, variantStore, revisionStore, templateRevisionStore, themeStore, storageClient, eng, pageCache, cacheLogStore, aiRegistry, aiCfg)
 	authHandlers := handlers.NewAuth(renderer, sessionStore, userStore)
 	publicHandlers := handlers.NewPublic(eng, contentStore, mediaStore, variantStore, storageClient, pageCache)
 

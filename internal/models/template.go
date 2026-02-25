@@ -33,3 +33,16 @@ type Template struct {
 	CreatedAt   time.Time    `json:"created_at"`
 	UpdatedAt   time.Time    `json:"updated_at"`
 }
+
+// TemplateRevision stores a snapshot of a template's state before an update,
+// enabling undo/restore. Follows the same pattern as ContentRevision.
+type TemplateRevision struct {
+	ID            uuid.UUID `json:"id"`
+	TemplateID    uuid.UUID `json:"template_id"`
+	Name          string    `json:"name"`
+	HTMLContent   string    `json:"html_content"`
+	RevisionTitle string    `json:"revision_title"`
+	RevisionLog   string    `json:"revision_log"`
+	CreatedBy     uuid.UUID `json:"created_by"`
+	CreatedAt     time.Time `json:"created_at"`
+}

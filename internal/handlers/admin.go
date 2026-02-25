@@ -51,42 +51,44 @@ type AIConfig struct {
 
 // Admin groups all admin panel HTTP handlers and their dependencies.
 type Admin struct {
-	renderer       *render.Renderer
-	sessions       *session.Store
-	contentStore   *store.ContentStore
-	userStore      *store.UserStore
-	templateStore  *store.TemplateStore
-	mediaStore     *store.MediaStore
-	variantStore   *store.VariantStore
-	revisionStore  *store.RevisionStore
-	themeStore     *store.DesignThemeStore
-	storageClient  *storage.Client
-	engine         *engine.Engine
-	pageCache      *cache.PageCache
-	cacheLog       *store.CacheLogStore
-	aiRegistry     *ai.Registry
-	aiConfig       *AIConfig
+	renderer              *render.Renderer
+	sessions              *session.Store
+	contentStore          *store.ContentStore
+	userStore             *store.UserStore
+	templateStore         *store.TemplateStore
+	mediaStore            *store.MediaStore
+	variantStore          *store.VariantStore
+	revisionStore         *store.RevisionStore
+	templateRevisionStore *store.TemplateRevisionStore
+	themeStore            *store.DesignThemeStore
+	storageClient         *storage.Client
+	engine                *engine.Engine
+	pageCache             *cache.PageCache
+	cacheLog              *store.CacheLogStore
+	aiRegistry            *ai.Registry
+	aiConfig              *AIConfig
 }
 
 // NewAdmin creates a new Admin handler group with the given dependencies.
 // storageClient, mediaStore, and variantStore may be nil if S3 is not configured.
-func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, mediaStore *store.MediaStore, variantStore *store.VariantStore, revisionStore *store.RevisionStore, themeStore *store.DesignThemeStore, storageClient *storage.Client, eng *engine.Engine, pageCache *cache.PageCache, cacheLog *store.CacheLogStore, aiRegistry *ai.Registry, aiCfg *AIConfig) *Admin {
+func NewAdmin(renderer *render.Renderer, sessions *session.Store, contentStore *store.ContentStore, userStore *store.UserStore, templateStore *store.TemplateStore, mediaStore *store.MediaStore, variantStore *store.VariantStore, revisionStore *store.RevisionStore, templateRevisionStore *store.TemplateRevisionStore, themeStore *store.DesignThemeStore, storageClient *storage.Client, eng *engine.Engine, pageCache *cache.PageCache, cacheLog *store.CacheLogStore, aiRegistry *ai.Registry, aiCfg *AIConfig) *Admin {
 	return &Admin{
-		renderer:       renderer,
-		sessions:       sessions,
-		contentStore:   contentStore,
-		userStore:      userStore,
-		templateStore:  templateStore,
-		mediaStore:     mediaStore,
-		variantStore:   variantStore,
-		revisionStore:  revisionStore,
-		themeStore:     themeStore,
-		storageClient:  storageClient,
-		engine:         eng,
-		pageCache:      pageCache,
-		cacheLog:       cacheLog,
-		aiRegistry:     aiRegistry,
-		aiConfig:       aiCfg,
+		renderer:              renderer,
+		sessions:              sessions,
+		contentStore:          contentStore,
+		userStore:             userStore,
+		templateStore:         templateStore,
+		mediaStore:            mediaStore,
+		variantStore:          variantStore,
+		revisionStore:         revisionStore,
+		templateRevisionStore: templateRevisionStore,
+		themeStore:            themeStore,
+		storageClient:         storageClient,
+		engine:                eng,
+		pageCache:             pageCache,
+		cacheLog:              cacheLog,
+		aiRegistry:            aiRegistry,
+		aiConfig:              aiCfg,
 	}
 }
 
@@ -867,12 +869,22 @@ func (a *Admin) TemplateEdit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Load revision history for the template.
+	var revisions []*models.TemplateRevision
+	if a.templateRevisionStore != nil {
+		revisions, err = a.templateRevisionStore.ListByTemplateID(item.ID)
+		if err != nil {
+			slog.Error("failed to load template revisions", "error", err)
+		}
+	}
+
 	a.renderer.Page(w, r, "template_form", &render.PageData{
 		Title:   "Edit Template",
 		Section: "templates",
 		Data: map[string]any{
-			"IsNew": false,
-			"Item":  item,
+			"IsNew":     false,
+			"Item":      item,
+			"Revisions": revisions,
 		},
 	})
 }
@@ -892,8 +904,13 @@ func (a *Admin) TemplateUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item.Name = r.FormValue("name")
+	// Capture old state before applying updates for the revision snapshot.
+	oldName := item.Name
+	oldHTML := item.HTMLContent
+
+	newName := r.FormValue("name")
 	htmlContent := r.FormValue("html_content")
+	revisionMessage := strings.TrimSpace(r.FormValue("revision_message"))
 
 	// Validate syntax.
 	if err := a.engine.ValidateTemplate(htmlContent); err != nil {
@@ -909,6 +926,26 @@ func (a *Admin) TemplateUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create a revision snapshot of the old state before persisting the update.
+	sess := middleware.SessionFromCtx(r.Context())
+	if a.templateRevisionStore != nil && sess != nil {
+		rev := &models.TemplateRevision{
+			TemplateID:    item.ID,
+			Name:          oldName,
+			HTMLContent:   oldHTML,
+			RevisionTitle: revisionMessage,
+			CreatedBy:     sess.UserID,
+		}
+		created, revErr := a.templateRevisionStore.Create(rev)
+		if revErr != nil {
+			slog.Error("failed to create template revision", "error", revErr)
+		} else {
+			// Generate AI revision metadata in background.
+			go a.generateTemplateRevisionMeta(created.ID, oldName, oldHTML, newName, htmlContent, revisionMessage)
+		}
+	}
+
+	item.Name = newName
 	item.HTMLContent = htmlContent
 	if err := a.templateStore.Update(item); err != nil {
 		slog.Error("update template failed", "error", err)
@@ -917,7 +954,7 @@ func (a *Admin) TemplateUpdate(w http.ResponseWriter, r *http.Request) {
 		a.invalidateTemplateCache(r.Context(), item.ID, "update")
 	}
 
-	http.Redirect(w, r, "/admin/templates", http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/templates/"+item.ID.String(), http.StatusSeeOther)
 }
 
 // TemplateActivate sets a template as active for its type.
@@ -998,6 +1035,156 @@ func (a *Admin) TemplatePreview(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write(result)
+}
+
+// TemplateRevisionRestore restores a template to the state captured in a revision.
+func (a *Admin) TemplateRevisionRestore(w http.ResponseWriter, r *http.Request) {
+	revIDStr := chi.URLParam(r, "revisionID")
+	revID, err := uuid.Parse(revIDStr)
+	if err != nil {
+		http.Error(w, "Invalid revision ID", http.StatusBadRequest)
+		return
+	}
+
+	rev, err := a.templateRevisionStore.FindByID(revID)
+	if err != nil || rev == nil {
+		http.Error(w, "Revision not found", http.StatusNotFound)
+		return
+	}
+
+	// Load the template to check it exists and to create a "pre-restore" snapshot.
+	item, err := a.templateStore.FindByID(rev.TemplateID)
+	if err != nil || item == nil {
+		http.Error(w, "Template not found", http.StatusNotFound)
+		return
+	}
+
+	// Create a revision of the current state before restoring.
+	sess := middleware.SessionFromCtx(r.Context())
+	preRestore := &models.TemplateRevision{
+		TemplateID:    item.ID,
+		Name:          item.Name,
+		HTMLContent:   item.HTMLContent,
+		RevisionTitle: "Before restore",
+		RevisionLog:   fmt.Sprintf("- State before restoring to revision from %s", rev.CreatedAt.Format("Jan 2, 2006 15:04")),
+		CreatedBy:     sess.UserID,
+	}
+	if _, err := a.templateRevisionStore.Create(preRestore); err != nil {
+		slog.Error("failed to create pre-restore template revision", "error", err)
+	}
+
+	// Apply the revision data to the template.
+	item.Name = rev.Name
+	item.HTMLContent = rev.HTMLContent
+	if err := a.templateStore.Update(item); err != nil {
+		slog.Error("restore template revision failed", "error", err)
+		http.Error(w, "Failed to restore revision", http.StatusInternalServerError)
+		return
+	}
+
+	a.invalidateTemplateCache(r.Context(), item.ID, "restore")
+
+	redirectURL := fmt.Sprintf("/admin/templates/%s", item.ID)
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("HX-Redirect", redirectURL)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+}
+
+// TemplateRevisionUpdateTitle updates a template revision's user-provided title.
+func (a *Admin) TemplateRevisionUpdateTitle(w http.ResponseWriter, r *http.Request) {
+	revIDStr := chi.URLParam(r, "revisionID")
+	revID, err := uuid.Parse(revIDStr)
+	if err != nil {
+		http.Error(w, "Invalid revision ID", http.StatusBadRequest)
+		return
+	}
+
+	rev, err := a.templateRevisionStore.FindByID(revID)
+	if err != nil || rev == nil {
+		http.Error(w, "Revision not found", http.StatusNotFound)
+		return
+	}
+
+	newTitle := strings.TrimSpace(r.FormValue("revision_title"))
+	if newTitle == "" {
+		writeAIError(w, "Title cannot be empty.")
+		return
+	}
+
+	if err := a.templateRevisionStore.UpdateMeta(revID, newTitle, rev.RevisionLog); err != nil {
+		slog.Error("failed to update template revision title", "error", err)
+		writeAIError(w, "Failed to update revision title.")
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprintf(w, `<span class="text-xs font-medium text-gray-900">%s</span>`, html.EscapeString(newTitle))
+}
+
+// generateTemplateRevisionMeta generates AI-powered revision title and changelog
+// for a template revision, running in the background.
+func (a *Admin) generateTemplateRevisionMeta(revID uuid.UUID, oldName, oldHTML, newName, newHTML, userMessage string) {
+	// Build a concise diff summary.
+	var changes []string
+	if oldName != newName {
+		changes = append(changes, fmt.Sprintf("Name: %q -> %q", truncateStr(oldName, 80), truncateStr(newName, 80)))
+	}
+	if oldHTML != newHTML {
+		oldLen := len(oldHTML)
+		newLen := len(newHTML)
+		changes = append(changes, fmt.Sprintf("HTML content: changed (%d -> %d chars)", oldLen, newLen))
+	}
+
+	if len(changes) == 0 {
+		changes = append(changes, "No visible changes")
+	}
+
+	diffSummary := strings.Join(changes, "\n")
+
+	ctx := context.Background()
+	revTitle := userMessage
+	if revTitle == "" {
+		prompt := fmt.Sprintf("Changes made to a template:\n%s\n\nOld name: %q\nNew name: %q",
+			diffSummary, truncateStr(oldName, 100), truncateStr(newName, 100))
+
+		systemPrompt := `You are a version control assistant. Generate a very short revision title
+(max 60 characters) that summarizes the template changes, like a git commit message.
+Output ONLY the title text, nothing else. Use imperative mood (e.g. "Restyle header with dark nav bar").`
+
+		result, err := a.aiRegistry.GenerateForTask(ctx, ai.TaskLight, systemPrompt, prompt)
+		if err != nil {
+			slog.Warn("ai template revision title failed", "error", err)
+			revTitle = "Template updated"
+		} else {
+			revTitle = strings.TrimSpace(result)
+			revTitle = strings.Trim(revTitle, `"'`)
+			if len(revTitle) > 80 {
+				revTitle = revTitle[:77] + "..."
+			}
+		}
+	}
+
+	// Generate a changelog.
+	changelogPrompt := fmt.Sprintf("Changes to a CMS template:\n%s", diffSummary)
+	changelogSystem := `You are a version control assistant. Generate a brief changelog (2-4 bullet points)
+describing what changed in this template revision. Each bullet should start with "- ".
+Be concise and factual. Output ONLY the bullet points, nothing else.`
+
+	changelog, err := a.aiRegistry.GenerateForTask(ctx, ai.TaskLight, changelogSystem, changelogPrompt)
+	if err != nil {
+		slog.Warn("ai template revision changelog failed", "error", err)
+		changelog = diffSummary
+	} else {
+		changelog = strings.TrimSpace(changelog)
+	}
+
+	if err := a.templateRevisionStore.UpdateMeta(revID, revTitle, changelog); err != nil {
+		slog.Error("failed to update template revision meta", "id", revID, "error", err)
+	}
 }
 
 // UsersList renders the user management page with real data.
