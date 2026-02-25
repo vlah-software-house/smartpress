@@ -953,7 +953,7 @@ func (a *Admin) AIThemeList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var items []themeResponse
+	items := make([]themeResponse, 0, len(themes))
 	for _, t := range themes {
 		items = append(items, themeResponse{
 			ID:          t.ID.String(),
